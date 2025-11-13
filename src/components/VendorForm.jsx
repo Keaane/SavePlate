@@ -1,335 +1,231 @@
 import { useState } from 'react';
-import { useApp } from '../context/AppContext';
 import { supabase } from '../lib/supabase';
 
-function VendorForm({ editingItem = null, onCancel = null, onSuccess = null }) {
-  const { profile } = useApp();
-  const [loading, setLoading] = useState(false);
-  
+export default function VendorForm({ editingItem, onCancel, onSuccess }) {
   const [formData, setFormData] = useState({
-    name: editingItem?.name || '',
-    quantity: editingItem?.quantity || '',
-    price: editingItem?.price || '',
-    expiryDate: editingItem?.expiry_date ? editingItem.expiry_date.split('T')[0] : '',
-    expiryTime: editingItem?.expiry_date ? editingItem.expiry_date.split('T')[1].slice(0,5) : '18:00',
-    category: editingItem?.category || 'Ready-to-eat',
-    description: editingItem?.description || ''
+    location: editingItem?.location || 'Kigali',
+    phone: editingItem?.phone || '',
+    delivery_available: editingItem?.delivery_available !== false,
+    delivery_fee: editingItem?.delivery_fee || 500
   });
-
-  const [errors, setErrors] = useState({});
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }));
-    }
-  };
-
-  const validateForm = () => {
-    const newErrors = {};
-    
-    if (!formData.name.trim()) newErrors.name = 'Food name is required';
-    if (!formData.quantity || formData.quantity < 1) newErrors.quantity = 'Quantity must be at least 1';
-    if (!formData.price || formData.price < 0) newErrors.price = 'Price must be 0 or more';
-    if (!formData.expiryDate) newErrors.expiryDate = 'Expiry date is required';
-    
-    const expiryDateTime = new Date(`${formData.expiryDate}T${formData.expiryTime}`);
-    if (expiryDateTime <= new Date()) {
-      newErrors.expiryDate = 'Expiry date must be in the future';
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!validateForm()) return;
-    
-    if (!profile) {
-      alert('You must be logged in to add food items');
-      return;
-    }
-
-    // Check if vendor is verified
-    if (profile.role === 'vendor' && !profile.is_verified && profile.verification_status !== 'verified') {
-      alert('⚠️ Your vendor account is pending verification. Only verified vendors can post food listings. Please wait for admin approval.');
-      return;
-    }
-
     setLoading(true);
 
     try {
-      const expiryDateTime = `${formData.expiryDate}T${formData.expiryTime}:00`;
-      
-      const foodItemData = {
-        name: formData.name.trim(),
-        quantity: parseInt(formData.quantity),
-        price: parseFloat(formData.price),
-        expiry_date: expiryDateTime,
-        category: formData.category,
-        description: formData.description.trim() || null,
-        vendor_id: profile.id,
-        is_active: true,
-        image: '🍽️'
+      // ✅ FIXED: Correct Supabase auth syntax
+      const {  { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
+      if (!user) throw new Error('Not logged in');
+
+      const updateData = {
+        location: formData.location.trim(),
+        phone: formData.phone.trim(),
+        delivery_available: formData.delivery_available,
+        delivery_fee: formData.delivery_available ? parseInt(formData.delivery_fee) : 0,
+        updated_at: new Date().toISOString()
       };
 
-      if (editingItem) {
-        // Update existing item
-        const { error } = await supabase
-          .from('food_items')
-          .update(foodItemData)
-          .eq('id', editingItem.id);
+      const { error } = await supabase
+        .from('profiles')
+        .update(updateData)
+        .eq('id', editingItem?.id || user.id);
 
-        if (error) throw error;
-        alert('✅ Food item updated successfully!');
-      } else {
-        // Insert new item
-        const { error } = await supabase
-          .from('food_items')
-          .insert([foodItemData]);
-
-        if (error) throw error;
-        alert('✅ Food item added successfully!');
-      }
-
-      // Reset form
-      if (onCancel) {
-        onCancel();
-      } else {
-        setFormData({
-          name: '',
-          quantity: '',
-          price: '',
-          expiryDate: '',
-          expiryTime: '18:00',
-          category: 'Ready-to-eat',
-          description: ''
-        });
-      }
-
-      // Call success callback if provided
-      if (onSuccess) {
-        onSuccess();
-      }
-    } catch (error) {
-      console.error('Error saving food item:', error);
-      alert('Error saving food item: ' + error.message);
+      if (error) throw error;
+      
+      alert('✅ Profile updated successfully!');
+      onSuccess();
+    } catch (err) {
+      alert('❌ Failed to save: ' + (err.message || 'Unknown error'));
+      console.error('Save error:', err);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{
+    <div style={{
       background: 'white',
-      padding: '2rem',
       borderRadius: '12px',
-      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+      padding: '2rem',
       maxWidth: '500px',
       margin: '0 auto'
     }}>
-      <h2 style={{ marginBottom: '1.5rem', color: '#1f2937' }}>
-        {editingItem ? 'Edit Food Item' : 'Add New Food Item'}
+      <h2 style={{ 
+        margin: '0 0 1.5rem', 
+        color: '#1f2937',
+        fontSize: '1.8rem'
+      }}>
+        {editingItem ? 'Edit Profile' : 'Complete Your Profile'}
       </h2>
-
-      <div style={{ marginBottom: '1rem' }}>
-        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
-          Food Name *
-        </label>
-        <input
-          type="text"
-          name="name"
-          value={formData.name}
-          onChange={handleChange}
-          style={{
-            width: '100%',
-            padding: '10px',
-            border: `2px solid ${errors.name ? '#ef4444' : '#d1d5db'}`,
-            borderRadius: '6px',
-            fontSize: '1rem'
-          }}
-          placeholder="e.g., Fresh Sandwiches"
-        />
-        {errors.name && <span style={{ color: '#ef4444', fontSize: '0.875rem' }}>{errors.name}</span>}
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-        <div>
-          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
-            Quantity *
+      
+      <form onSubmit={handleSubmit}>
+        <div style={{ marginBottom: '1.5rem' }}>
+          <label style={{ 
+            display: 'block', 
+            marginBottom: '0.5rem', 
+            fontWeight: '600',
+            color: '#374151'
+          }}>
+            📍 Location (for pickup)
           </label>
           <input
-            type="number"
-            name="quantity"
-            value={formData.quantity}
-            onChange={handleChange}
-            min="1"
+            type="text"
+            value={formData.location}
+            onChange={e => setFormData({...formData, location: e.target.value})}
+            placeholder="e.g. Kigali, Kimironko"
+            required
             style={{
               width: '100%',
-              padding: '10px',
-              border: `2px solid ${errors.quantity ? '#ef4444' : '#d1d5db'}`,
-              borderRadius: '6px',
+              padding: '12px',
+              border: '1px solid #d1d5db',
+              borderRadius: '8px',
               fontSize: '1rem'
             }}
           />
-          {errors.quantity && <span style={{ color: '#ef4444', fontSize: '0.875rem' }}>{errors.quantity}</span>}
+          <p style={{ 
+            fontSize: '0.85rem', 
+            color: '#6b7280', 
+            marginTop: '0.5rem'
+          }}>
+            Where students will pick up food
+          </p>
         </div>
 
-        <div>
-          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
-            Price ($) *
+        <div style={{ marginBottom: '1.5rem' }}>
+          <label style={{ 
+            display: 'block', 
+            marginBottom: '0.5rem', 
+            fontWeight: '600',
+            color: '#374151'
+          }}>
+            📞 Phone Number (for orders)
           </label>
           <input
-            type="number"
-            name="price"
-            value={formData.price}
-            onChange={handleChange}
-            min="0"
-            step="0.01"
+            type="tel"
+            value={formData.phone}
+            onChange={e => setFormData({...formData, phone: e.target.value})}
+            placeholder="e.g. 0788123456"
+            required
             style={{
               width: '100%',
-              padding: '10px',
-              border: `2px solid ${errors.price ? '#ef4444' : '#d1d5db'}`,
-              borderRadius: '6px',
+              padding: '12px',
+              border: '1px solid #d1d5db',
+              borderRadius: '8px',
               fontSize: '1rem'
             }}
           />
-          {errors.price && <span style={{ color: '#ef4444', fontSize: '0.875rem' }}>{errors.price}</span>}
+          <p style={{ 
+            fontSize: '0.85rem', 
+            color: '#6b7280', 
+            marginTop: '0.5rem'
+          }}>
+            Students will call/text you to arrange orders
+          </p>
         </div>
-      </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-        <div>
-          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
-            Expiry Date *
+        <div style={{ 
+          marginBottom: '1.5rem', 
+          padding: '1rem',
+          background: '#f8fafc',
+          borderRadius: '8px',
+          border: '1px solid #dbeafe'
+        }}>
+          <label style={{ 
+            display: 'flex', 
+            alignItems: 'center',
+            fontWeight: '600',
+            color: '#1e40af'
+          }}>
+            <input
+              type="checkbox"
+              checked={formData.delivery_available}
+              onChange={e => setFormData({...formData, delivery_available: e.target.checked})}
+              style={{ 
+                marginRight: '10px',
+                width: '18px',
+                height: '18px'
+              }}
+            />
+            🏍️ Offer moto delivery?
           </label>
-          <input
-            type="date"
-            name="expiryDate"
-            value={formData.expiryDate}
-            onChange={handleChange}
-            style={{
-              width: '100%',
-              padding: '10px',
-              border: `2px solid ${errors.expiryDate ? '#ef4444' : '#d1d5db'}`,
-              borderRadius: '6px',
-              fontSize: '1rem'
-            }}
-          />
-          {errors.expiryDate && <span style={{ color: '#ef4444', fontSize: '0.875rem' }}>{errors.expiryDate}</span>}
+          
+          {formData.delivery_available && (
+            <div style={{ marginTop: '1rem' }}>
+              <label style={{ 
+                display: 'block', 
+                marginBottom: '0.5rem',
+                fontWeight: '500'
+              }}>
+                Delivery Fee (RWF)
+              </label>
+              <input
+                type="number"
+                value={formData.delivery_fee}
+                onChange={e => setFormData({...formData, delivery_fee: e.target.value})}
+                min="0"
+                step="100"
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px'
+                }}
+              />
+              <p style={{ 
+                fontSize: '0.8rem', 
+                color: '#6b7280',
+                marginTop: '0.3rem'
+              }}>
+                Typical: Frw 300-1,000 (Kigali), Frw 500-2,000 (outside)
+              </p>
+            </div>
+          )}
         </div>
 
-        <div>
-          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
-            Expiry Time *
-          </label>
-          <input
-            type="time"
-            name="expiryTime"
-            value={formData.expiryTime}
-            onChange={handleChange}
-            style={{
-              width: '100%',
-              padding: '10px',
-              border: '2px solid #d1d5db',
-              borderRadius: '6px',
-              fontSize: '1rem'
-            }}
-          />
-        </div>
-      </div>
-
-      <div style={{ marginBottom: '1rem' }}>
-        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
-          Category
-        </label>
-        <select
-          name="category"
-          value={formData.category}
-          onChange={handleChange}
-          style={{
-            width: '100%',
-            padding: '10px',
-            border: '2px solid #d1d5db',
-            borderRadius: '6px',
-            fontSize: '1rem'
-          }}
-        >
-          <option value="Ready-to-eat">Ready-to-eat</option>
-          <option value="Vegetarian">Vegetarian</option>
-          <option value="Fruits">Fruits</option>
-          <option value="Bakery">Bakery</option>
-          <option value="Other">Other</option>
-        </select>
-      </div>
-
-      <div style={{ marginBottom: '1.5rem' }}>
-        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
-          Description
-        </label>
-        <textarea
-          name="description"
-          value={formData.description}
-          onChange={handleChange}
-          rows="3"
-          style={{
-            width: '100%',
-            padding: '10px',
-            border: '2px solid #d1d5db',
-            borderRadius: '6px',
-            fontSize: '1rem',
-            resize: 'vertical'
-          }}
-          placeholder="Brief description of the food item..."
-        />
-      </div>
-
-      <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-        {onCancel && (
+        <div style={{ 
+          display: 'flex', 
+          gap: '1rem',
+          marginTop: '2rem'
+        }}>
           <button
             type="button"
             onClick={onCancel}
             style={{
-              padding: '10px 20px',
-              border: '2px solid #6b7280',
-              background: 'white',
-              color: '#6b7280',
-              borderRadius: '6px',
-              fontWeight: 'bold',
-              cursor: 'pointer'
+              flex: 1,
+              padding: '12px',
+              background: '#ef4444',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              fontSize: '1rem'
             }}
           >
             Cancel
           </button>
-        )}
-        <button
-          type="submit"
-          disabled={loading}
-          style={{
-            padding: '10px 20px',
-            border: 'none',
-            background: loading ? '#9ca3af' : '#10b981',
-            color: 'white',
-            borderRadius: '6px',
-            fontWeight: 'bold',
-            cursor: loading ? 'not-allowed' : 'pointer',
-            opacity: loading ? 0.7 : 1
-          }}
-        >
-          {loading ? 'Saving...' : (editingItem ? 'Update Item' : 'Add Item')}
-        </button>
-      </div>
-    </form>
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              flex: 1,
+              padding: '12px',
+              background: loading ? '#94a3b8' : '#059669',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontWeight: '600',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              fontSize: '1rem'
+            }}
+          >
+            {loading ? 'Saving...' : '✅ Save Profile'}
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }
-
-export default VendorForm;
