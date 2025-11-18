@@ -37,7 +37,6 @@ function Students() {
       setFoodItems(formattedData);
     } catch (error) {
       console.error('Error fetching food items:', error);
-      alert('Failed to load food items. Check console.');
     } finally {
       setLoading(false);
     }
@@ -70,7 +69,8 @@ function Students() {
         minHeight: '60vh', 
         display: 'flex', 
         alignItems: 'center', 
-        justifyContent: 'center' 
+        justifyContent: 'center',
+        padding: '2rem'
       }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>🍽️</div>
@@ -88,12 +88,14 @@ function Students() {
         marginBottom: '2rem',
         padding: '2rem',
         background: '#f0fdf4',
-        borderRadius: '16px'
+        borderRadius: '16px',
+        border: '1px solid #bbf7d0'
       }}>
         <h1 style={{ 
           margin: 0, 
           fontSize: '2.2rem',
-          color: '#065f46'
+          color: '#065f46',
+          fontWeight: '700'
         }}>
           🇷🇼 SavePlate Rwanda
         </h1>
@@ -106,44 +108,25 @@ function Students() {
         </p>
       </div>
 
-      {/* Stats */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-        gap: '1rem',
-        marginBottom: '2rem'
-      }}>
-        <div style={{
-          background: 'white',
-          padding: '1.5rem',
-          borderRadius: '12px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          textAlign: 'center'
-        }}>
-          <h3 style={{ color: '#059669', fontSize: '2rem', margin: '0' }}>
-            {availableFood.length}
-          </h3>
-          <p style={{ color: '#6b7280', margin: '0' }}>Available Items</p>
-        </div>
-      </div>
-
       {/* Search */}
       <SearchBar 
         onSearch={setSearchTerm}
         onFilter={setFilterCategory}
         onLocationFilter={setLocationFilter}
-        priceFilter={null}
-        expiryFilter={null}
       />
 
       {/* Food Items */}
       <section style={{ marginBottom: '3rem' }}>
-        <h2 style={{ 
-          marginBottom: '1.5rem',
-          color: '#1f2937'
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          marginBottom: '1.5rem'
         }}>
-          🍽️ Available Food ({filteredFood.length})
-        </h2>
+          <h2 style={{ color: '#1f2937', margin: 0 }}>
+            🍽️ Available Food ({filteredFood.length})
+          </h2>
+        </div>
         
         {filteredFood.length === 0 ? (
           <div style={{
@@ -151,8 +134,9 @@ function Students() {
             padding: '3rem 2rem',
             background: 'white',
             borderRadius: '12px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+            border: '1px solid #e5e7eb'
           }}>
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔍</div>
             <h3 style={{ color: '#6b7280', marginBottom: '1rem' }}>
               {availableFood.length === 0 ? 'No food available' : 'No matches found'}
             </h3>
@@ -188,14 +172,16 @@ function Students() {
           color: '#1e40af',
           display: 'flex',
           alignItems: 'center',
-          gap: '0.5rem'
+          gap: '0.5rem',
+          fontWeight: '700'
         }}>
           📱 How to Order
         </h3>
         <ol style={{ 
           color: '#1e40af', 
           paddingLeft: '1.5rem',
-          lineHeight: '1.8'
+          lineHeight: '1.8',
+          margin: 0
         }}>
           <li><strong>Contact the vendor</strong> using the phone number shown</li>
           <li>Confirm food availability and quantity</li>
@@ -205,7 +191,8 @@ function Students() {
         <p style={{ 
           marginTop: '1rem',
           fontStyle: 'italic',
-          color: '#3b82f6'
+          color: '#3b82f6',
+          margin: 0
         }}>
           💡 Tip: Save vendor numbers in your phone for faster ordering!
         </p>

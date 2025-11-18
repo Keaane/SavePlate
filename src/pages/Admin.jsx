@@ -259,7 +259,7 @@ function Admin() {
             borderRadius: '12px',
             padding: '4px'
           }}>
-            {(['vendors', 'listings', 'analytics'] as const).map(tab => (
+            {['vendors', 'listings', 'analytics'].map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}

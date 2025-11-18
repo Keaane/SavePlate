@@ -118,7 +118,7 @@ function Footer() {
         }}>
           <div>
             <p style={{ color: 'var(--text-muted)', margin: 0 }}>
-              &copy; 2024 SavePlate. All rights reserved.
+              &copy; 2025 SavePlate. All rights reserved.
             </p>
           </div>
           <div>

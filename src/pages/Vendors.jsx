@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
 import { supabase } from '../lib/supabase';
-import VendorForm from '../components/VendorForm';
+import VendorForm from '../components/Vendorform';
 import FoodCard from '../components/FoodCard';
-import VendorPayments from '../components/VendorPayments';
 import { deactivateExpiredItems } from '../utils/expiryHandler';
 
 function Vendors() {

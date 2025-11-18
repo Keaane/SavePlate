@@ -6,8 +6,9 @@ import { useApp } from '../context/AppContext';
 function Auth() {
   const { dispatch } = useApp();
   const navigate = useNavigate();
-  const [step, setStep] = useState('welcome'); // 'welcome' | 'signup' | 'signin' | 'vendor-form'
-  const [role, setRole] = useState('student'); // 'student' | 'vendor'
+  
+  const [step, setStep] = useState('welcome'); // 'welcome', 'signup', 'signin'
+  const [role, setRole] = useState('student'); // 'student', 'vendor'
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -19,16 +20,39 @@ function Auth() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // Check if user is already logged in
+  // Handle OAuth callback (for Google login)
   useEffect(() => {
-    const checkSession = async () => {
-      const {  { session } } = await supabase.auth.getSession();
-      if (session) {
-        navigate(role === 'vendor' ? '/vendors' : '/students');
+    const handleOAuthCallback = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const error = urlParams.get('error');
+      const email = urlParams.get('email');
+      
+      if (error) {
+        setError(decodeURIComponent(error));
+        return;
+      }
+      
+      if (email) {
+        // Prefill email after Google login
+        setFormData(prev => ({ ...prev, email }));
+        setStep('signup');
       }
     };
-    checkSession();
-  }, [navigate, role]);
+
+    handleOAuthCallback();
+    
+    // Clean up URL after processing
+    if (window.location.search) {
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, []);
+
+  // Real-time email validation
+  const validateEmail = (email) => {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
+  };
 
   const handleSignup = async (e) => {
     e.preventDefault();
@@ -37,48 +61,67 @@ function Auth() {
     setSuccess('');
 
     try {
-      // Validate phone for Rwanda
-      if (role === 'vendor' && formData.phone) {
-        const cleaned = formData.phone.replace(/\D/g, '');
-        if (!/^(?:\+?250|0)?7[23589]\d{7}$/.test(cleaned)) {
-          throw new Error('Please enter a valid Rwandan phone number (e.g. 0788123456)');
-        }
+      // Validate email first
+      if (!validateEmail(formData.email)) {
+        throw new Error('Please enter a valid email address');
+      }
+
+      // Validate required fields
+      if (!formData.fullName.trim()) {
+        throw new Error('Full name is required');
+      }
+
+      if (formData.password.length < 6) {
+        throw new Error('Password must be at least 6 characters');
       }
 
       const { data, error } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
-           {
+          data: {
             role,
-            full_name: formData.fullName,
+            full_name: formData.fullName.trim(),
             phone: formData.phone || null,
             location: formData.location || 'Kigali'
           }
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        // Handle specific Supabase errors
+        if (error.message.includes('email')) {
+          throw new Error('This email is already registered. Try signing in.');
+        }
+        if (error.message.includes('password')) {
+          throw new Error('Password must be at least 6 characters');
+        }
+        throw error;
+      }
 
-      if (role === 'vendor') {
-        setStep('vendor-form');
-      } else {
+      if (data.user) {
         setSuccess('✅ Account created! Check your email for verification.');
-        // Auto-login after 2s
+        
+        // Auto-login after 2 seconds
         setTimeout(() => {
-          handleSignin(e, true);
+          navigate(role === 'vendor' ? '/vendors' : '/students');
         }, 2000);
       }
     } catch (err) {
-      setError(err.message || 'Signup failed. Please try again.');
+      const errorMessage = 
+        err.message || 
+        err.error_description || 
+        'Signup failed. Please try again.';
+      
+      setError(errorMessage);
       console.error('Signup error:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSignin = async (e, skipForm = false) => {
-    if (e) e.preventDefault();
+  const handleSignin = async (e) => {
+    e.preventDefault();
     setLoading(true);
     setError('');
     setSuccess('');
@@ -89,13 +132,29 @@ function Auth() {
         password: formData.password,
       });
 
-      if (error) throw error;
+      if (error) {
+        if (error.message.includes('Invalid login credentials')) {
+          throw new Error('Incorrect email or password');
+        }
+        if (error.message.includes('Email not confirmed')) {
+          throw new Error('Please check your email and confirm your account first');
+        }
+        throw error;
+      }
 
-      // Redirect based on role
-      const userRole = data.user.user_metadata?.role || 'student';
-      navigate(userRole === 'vendor' ? '/vendors' : '/students');
+      if (data.user) {
+        // Get user role from metadata
+        const userRole = data.user.user_metadata?.role || 'student';
+        navigate(userRole === 'vendor' ? '/vendors' : '/students');
+      }
     } catch (err) {
-      setError(err.message || 'Sign in failed. Check email/password.');
+      const errorMessage = 
+        err.message || 
+        err.error_description || 
+        'Sign in failed. Check your credentials.';
+      
+      setError(errorMessage);
+      console.error('Signin error:', err);
     } finally {
       setLoading(false);
     }
@@ -104,19 +163,28 @@ function Auth() {
   const handleOAuth = async (provider) => {
     setLoading(true);
     setError('');
-
+    
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: provider,
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`
+          // Critical: Use your actual domain in production
+          redirectTo: window.location.origin + '/auth',
+          scopes: 'email,profile'
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
     } catch (err) {
-      setError('Social login failed. Please try again.');
+      const errorMessage = 
+        err.message || 
+        'Google login failed. Please try again.';
+      
+      setError(errorMessage);
       setLoading(false);
+      console.error('OAuth error:', err);
     }
   };
 
@@ -169,6 +237,7 @@ function Auth() {
 
         {/* Content */}
         <div style={{ padding: '2rem' }}>
+          {/* Error Message */}
           {error && (
             <div style={{
               background: 'rgba(239,68,68,0.1)',
@@ -176,12 +245,14 @@ function Auth() {
               color: '#f87171',
               padding: '1rem',
               borderRadius: '8px',
-              marginBottom: '1.5rem'
+              marginBottom: '1.5rem',
+              fontSize: '0.95rem'
             }}>
-              {error}
+              ❌ {error}
             </div>
           )}
 
+          {/* Success Message */}
           {success && (
             <div style={{
               background: 'rgba(16,185,129,0.1)',
@@ -189,9 +260,10 @@ function Auth() {
               color: '#34d399',
               padding: '1rem',
               borderRadius: '8px',
-              marginBottom: '1.5rem'
+              marginBottom: '1.5rem',
+              fontSize: '0.95rem'
             }}>
-              {success}
+              ✅ {success}
             </div>
           )}
 
@@ -279,9 +351,9 @@ function Auth() {
 
           {/* Signup/Signin Form */}
           {(step === 'signup' || step === 'signin') && (
-            <div>
-              <h2 style={{ 
-                marginBottom: '1.5rem', 
+            <><div>
+              <h2 style={{
+                marginBottom: '1.5rem',
                 fontSize: '1.5rem',
                 display: 'flex',
                 alignItems: 'center',
@@ -302,26 +374,27 @@ function Auth() {
               </h2>
 
               <form onSubmit={step === 'signup' ? handleSignup : handleSignin}>
-                <div style={{ marginBottom: '1.25rem' }}>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
-                    Full Name
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.fullName}
-                    onChange={(e) => setFormData({...formData, fullName: e.target.value})}
-                    placeholder="e.g. Jean Nkusi"
-                    required={step === 'signup'}
-                    style={{
-                      width: '100%',
-                      padding: '12px',
-                      background: 'rgba(0,0,0,0.3)',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      borderRadius: '12px',
-                      color: 'white'
-                    }}
-                  />
-                </div>
+                {step === 'signup' && (
+                  <div style={{ marginBottom: '1.25rem' }}>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
+                      Full Name
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.fullName}
+                      onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                      placeholder="e.g. Jean Nkusi"
+                      required
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        background: 'rgba(0,0,0,0.3)',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        borderRadius: '12px',
+                        color: 'white'
+                      }} />
+                  </div>
+                )}
 
                 <div style={{ marginBottom: '1.25rem' }}>
                   <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
@@ -330,8 +403,11 @@ function Auth() {
                   <input
                     type="email"
                     value={formData.email}
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
-                    placeholder="e.g. jean@example.com"
+                    onChange={(e) => {
+                      setFormData({ ...formData, email: e.target.value });
+                      if (error.includes('email')) setError('');
+                    } }
+                    placeholder="e.g. jean@gmail.com"
                     required
                     style={{
                       width: '100%',
@@ -340,8 +416,16 @@ function Auth() {
                       border: '1px solid rgba(255,255,255,0.1)',
                       borderRadius: '12px',
                       color: 'white'
-                    }}
-                  />
+                    }} />
+                  {formData.email && !validateEmail(formData.email) && (
+                    <p style={{
+                      color: '#ef4444',
+                      fontSize: '0.85rem',
+                      marginTop: '0.5rem'
+                    }}>
+                      ❌ Please enter a valid email
+                    </p>
+                  )}
                 </div>
 
                 <div style={{ marginBottom: '1.25rem' }}>
@@ -351,7 +435,7 @@ function Auth() {
                   <input
                     type="password"
                     value={formData.password}
-                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     placeholder="••••••••"
                     required
                     minLength="6"
@@ -362,65 +446,63 @@ function Auth() {
                       border: '1px solid rgba(255,255,255,0.1)',
                       borderRadius: '12px',
                       color: 'white'
-                    }}
-                  />
+                    }} />
+                  {formData.password && formData.password.length < 6 && (
+                    <p style={{
+                      color: '#ef4444',
+                      fontSize: '0.85rem',
+                      marginTop: '0.5rem'
+                    }}>
+                      ❌ Password must be 6+ characters
+                    </p>
+                  )}
                 </div>
 
                 {role === 'vendor' && step === 'signup' && (
-                  <div style={{ marginBottom: '1.25rem' }}>
-                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
-                      Phone Number (for orders)
-                    </label>
-                    <input
-                      type="tel"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                      placeholder="e.g. 0788123456"
-                      style={{
-                        width: '100%',
-                        padding: '12px',
-                        background: 'rgba(0,0,0,0.3)',
-                        border: '1px solid rgba(255,255,255,0.1)',
-                        borderRadius: '12px',
-                        color: 'white'
-                      }}
-                    />
-                    <p style={{ 
-                      fontSize: '0.8rem', 
-                      color: 'rgba(255,255,255,0.6)',
-                      marginTop: '0.5rem'
-                    }}>
-                      Format: 0788123456 or +250788123456
-                    </p>
-                  </div>
-                )}
-
-                {role === 'vendor' && step === 'signup' && (
-                  <div style={{ marginBottom: '1.25rem' }}>
-                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
-                      Location (for pickup)
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.location}
-                      onChange={(e) => setFormData({...formData, location: e.target.value})}
-                      placeholder="e.g. Kigali, Nyarugenge"
-                      required
-                      style={{
-                        width: '100%',
-                        padding: '12px',
-                        background: 'rgba(0,0,0,0.3)',
-                        border: '1px solid rgba(255,255,255,0.1)',
-                        borderRadius: '12px',
-                        color: 'white'
-                      }}
-                    />
-                  </div>
+                  <>
+                    <div style={{ marginBottom: '1.25rem' }}>
+                      <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
+                        Phone Number (for orders)
+                      </label>
+                      <input
+                        type="tel"
+                        value={formData.phone}
+                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                        placeholder="e.g. 0788123456"
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          background: 'rgba(0,0,0,0.3)',
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          borderRadius: '12px',
+                          color: 'white'
+                        }} />
+                    </div>
+                    <div style={{ marginBottom: '1.25rem' }}>
+                      <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
+                        Location (for pickup)
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.location}
+                        onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                        placeholder="e.g. Kicukiro, Kimihurura"
+                        required
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          background: 'rgba(0,0,0,0.3)',
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          borderRadius: '12px',
+                          color: 'white'
+                        }} />
+                    </div>
+                  </>
                 )}
 
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || (step === 'signup' && formData.password.length < 6) || (step === 'signup' && !validateEmail(formData.email))}
                   style={{
                     width: '100%',
                     padding: '14px',
@@ -452,48 +534,60 @@ function Auth() {
                 </button>
               </form>
 
-              <div style={{ 
+              <div style={{
                 marginTop: '1.5rem',
                 borderTop: '1px solid rgba(255,255,255,0.1)',
                 paddingTop: '1.5rem'
               }}>
-                <p style={{ 
-                  textAlign: 'center', 
-                  marginBottom: '1rem', 
+                <p style={{
+                  textAlign: 'center',
+                  marginBottom: '1rem',
                   color: 'rgba(255,255,255,0.7)'
                 }}>
                   Or continue with
                 </p>
-                
-                <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+
+
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  marginBottom: '1rem'
+                }}>
                   <button
                     onClick={() => handleOAuth('google')}
+                    disabled={loading}
                     style={{
-                      padding: '10px',
-                      background: 'white',
+                      padding: '12px 24px',
+                      background: loading ? '#6b7280' : 'white',
                       border: '1px solid rgba(255,255,255,0.2)',
                       borderRadius: '8px',
-                      cursor: 'pointer'
+                      cursor: loading ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.75rem',
+                      fontWeight: '500',
+                      fontSize: '1rem'
                     }}
                   >
-                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" width="20" />
-                  </button>
-                  <button
-                    onClick={() => handleOAuth('github')}
-                    style={{
-                      padding: '10px',
-                      background: 'white',
-                      border: '1px solid rgba(255,255,255,0.2)',
-                      borderRadius: '8px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/github.svg" alt="GitHub" width="20" />
+                    <img
+                      src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+                      alt="Google"
+                      width="20" />
+                    Continue with Google
                   </button>
                 </div>
 
-                <p style={{ 
-                  textAlign: 'center', 
+                <p style={{
+                  textAlign: 'center',
+                  fontSize: '0.85rem',
+                  color: 'rgba(255,255,255,0.6)',
+                  fontStyle: 'italic'
+                }}>
+                  🇷🇼 You can signup with Google
+                </p>
+
+                <p style={{
+                  textAlign: 'center',
                   marginTop: '1.5rem',
                   fontSize: '0.9rem',
                   color: 'rgba(255,255,255,0.6)'
@@ -535,22 +629,18 @@ function Auth() {
                   )}
                 </p>
               </div>
-            </div>
-          )}
-
-          {/* Rwanda Bonus Banner */}
-          <div style={{
-            marginTop: '2rem',
-            padding: '1rem',
-            background: 'rgba(16,185,129,0.1)',
-            border: '1px solid rgba(16,185,129,0.2)',
-            borderRadius: '12px',
-            textAlign: 'center'
-          }}>
-            <p style={{ margin: 0, fontWeight: '500', color: '#34d399' }}>
-              🇷🇼 <strong>Welcome to Rwanda!</strong> New users get <strong>Frw 200</strong> bonus on first order!
-            </p>
-          </div>
+            </div><div style={{
+              marginTop: '2rem',
+              padding: '1rem',
+              background: 'rgba(16,185,129,0.1)',
+              border: '1px solid rgba(16,185,129,0.2)',
+              borderRadius: '12px',
+              textAlign: 'center'
+            }}>
+                <p style={{ margin: 0, fontWeight: '500', color: '#34d399' }}>
+                  🇷🇼 <strong>Welcome!</strong> Treat yourself <strong>or friends</strong> today!
+                </p>
+              </div></>)}
         </div>
       </div>
 

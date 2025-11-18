@@ -143,104 +143,101 @@ export function AppProvider({ children }) {
       }
     };
 
-    // Safety timeout - ensure loading is set to false after 5 seconds max
-    const timeoutId = setTimeout(() => {
-      console.warn('Loading timeout reached, forcing loading to false');
-      dispatch({ type: 'SET_LOADING', payload: false });
-    }, 5000);
+    // Safety timeout - wait up to 15 seconds for auth + data
+const timeoutId = setTimeout(() => {
+  console.warn('Auth/data load timeout — checking session manually...');
+  
+  
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    if (session) {
+      dispatch({ type: 'SET_USER', payload: session.user });
+    
+      supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .single()
+        .then(({ data: profile }) => {
+          if (profile) {
+            dispatch({ type: 'SET_PROFILE', payload: profile });
+          }
+        });
+    }
+    dispatch({ type: 'SET_LOADING', payload: false });
+  });
+}, 15000); 
 
     const getSession = async () => {
+  try {
+    // 1. First, try to get session
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    
+    if (sessionError) {
+      console.error('Session error:', sessionError);
+      throw sessionError;
+    }
+
+    // 2. If no session, try to recover from URL (OAuth callback)
+    if (!session) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const access_token = urlParams.get('access_token');
+      if (access_token) {
+        // Manually set session from OAuth callback
+        await supabase.auth.setSession({ access_token, refresh_token: urlParams.get('refresh_token') || '' });
+        const { data: { session: newSession } } = await supabase.auth.getSession();
+        if (newSession) {
+          dispatch({ type: 'SET_USER', payload: newSession.user });
+          console.log('✅ Recovered session from URL');
+        }
+      }
+    } else {
+      // 3. Valid session → set user
+      dispatch({ type: 'SET_USER', payload: session.user });
+      
+      // 4. Fetch profile — with timeout!
+      const profileTimeout = setTimeout(() => {
+        console.warn('Profile fetch timeout — using minimal profile');
+        dispatch({ type: 'SET_PROFILE', payload: { id: session.user.id, role: 'student' } });
+      }, 8000);
+      
       try {
-        const { data: { session }, error } = await supabase.auth.getSession();
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
         
-        if (error) {
-          console.error('Error getting session:', error);
-          clearTimeout(timeoutId);
-          dispatch({ type: 'SET_LOADING', payload: false });
-          return;
-        }
+        clearTimeout(profileTimeout);
         
-        if (session) {
-          dispatch({ type: 'SET_USER', payload: session.user });
-          
-          // Fetch user profile
-          try {
-            const { data: profile, error: profileError } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .single();
-            
-            if (profileError) {
-              console.error('Error fetching profile:', profileError);
-            } else if (profile) {
-              dispatch({ type: 'SET_PROFILE', payload: profile });
-            }
-
-            // Fetch initial data
-            await fetchInitialData();
-          } catch (error) {
-            console.error('Error fetching profile or initial data:', error);
-          }
+        if (profileError) {
+          console.error('Profile error:', profileError);
+          // Create minimal profile
+          dispatch({ 
+            type: 'SET_PROFILE', 
+            payload: { id: session.user.id, role: 'student' } 
+          });
+        } else {
+          dispatch({ type: 'SET_PROFILE', payload: profile });
+          console.log('✅ Profile loaded:', profile.role);
         }
-      } catch (error) {
-        console.error('Error in getSession:', error);
-      } finally {
-        // Always set loading to false, even if there's an error
-        clearTimeout(timeoutId);
-        dispatch({ type: 'SET_LOADING', payload: false });
+      } catch (err) {
+        clearTimeout(profileTimeout);
+        console.error('Profile fetch failed:', err);
+        dispatch({ type: 'SET_PROFILE', payload: { id: session.user.id, role: 'student' } });
       }
-    };
+    }
+  } catch (error) {
+    console.error('Auth error:', error);
+  } finally {
+    dispatch({ type: 'SET_LOADING', payload: false });
+  }
+};
 
+    // invoke the session loader
     getSession();
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        try {
-          if (session) {
-            dispatch({ type: 'SET_USER', payload: session.user });
-            
-            // Fetch user profile
-            try {
-              const { data: profile, error: profileError } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', session.user.id)
-                .single();
-              
-              if (profileError) {
-                console.error('Error fetching profile:', profileError);
-              } else if (profile) {
-                dispatch({ type: 'SET_PROFILE', payload: profile });
-              }
-
-              // Fetch data when user signs in
-              if (event === 'SIGNED_IN') {
-                await fetchInitialData();
-              }
-            } catch (error) {
-              console.error('Error in auth state change handler:', error);
-            }
-          } else {
-            dispatch({ type: 'SET_USER', payload: null });
-            dispatch({ type: 'SET_PROFILE', payload: null });
-            dispatch({ type: 'SET_FOOD_ITEMS', payload: [] });
-            dispatch({ type: 'SET_VENDORS', payload: [] });
-            dispatch({ type: 'SET_ORDERS', payload: [] });
-            dispatch({ type: 'CLEAR_CART' });
-          }
-        } catch (error) {
-          console.error('Error in auth state change:', error);
-        } finally {
-          dispatch({ type: 'SET_LOADING', payload: false });
-        }
-      }
-    );
 
     return () => {
       clearTimeout(timeoutId);
-      subscription.unsubscribe();
     };
   }, []);
 

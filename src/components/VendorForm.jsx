@@ -15,9 +15,10 @@ export default function VendorForm({ editingItem, onCancel, onSuccess }) {
     setLoading(true);
 
     try {
-      // ✅ FIXED: Correct Supabase auth syntax
-      const {  { user }, error: authError } = await supabase.auth.getUser();
-      if (authError) throw authError;
+      // ✅ FIXED: Plain JavaScript - no destructuring syntax
+      const authResponse = await supabase.auth.getUser();
+      if (authResponse.error) throw authResponse.error;
+      const user = authResponse.data.user;
       if (!user) throw new Error('Not logged in');
 
       const updateData = {
@@ -74,7 +75,7 @@ export default function VendorForm({ editingItem, onCancel, onSuccess }) {
           <input
             type="text"
             value={formData.location}
-            onChange={e => setFormData({...formData, location: e.target.value})}
+            onChange={(e) => setFormData({...formData, location: e.target.value})}
             placeholder="e.g. Kigali, Kimironko"
             required
             style={{
@@ -106,7 +107,7 @@ export default function VendorForm({ editingItem, onCancel, onSuccess }) {
           <input
             type="tel"
             value={formData.phone}
-            onChange={e => setFormData({...formData, phone: e.target.value})}
+            onChange={(e) => setFormData({...formData, phone: e.target.value})}
             placeholder="e.g. 0788123456"
             required
             style={{
@@ -142,7 +143,7 @@ export default function VendorForm({ editingItem, onCancel, onSuccess }) {
             <input
               type="checkbox"
               checked={formData.delivery_available}
-              onChange={e => setFormData({...formData, delivery_available: e.target.checked})}
+              onChange={(e) => setFormData({...formData, delivery_available: e.target.checked})}
               style={{ 
                 marginRight: '10px',
                 width: '18px',
@@ -164,7 +165,7 @@ export default function VendorForm({ editingItem, onCancel, onSuccess }) {
               <input
                 type="number"
                 value={formData.delivery_fee}
-                onChange={e => setFormData({...formData, delivery_fee: e.target.value})}
+                onChange={(e) => setFormData({...formData, delivery_fee: e.target.value})}
                 min="0"
                 step="100"
                 style={{
@@ -227,5 +228,5 @@ export default function VendorForm({ editingItem, onCancel, onSuccess }) {
         </div>
       </form>
     </div>
-  );
+);
 }
