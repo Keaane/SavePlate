@@ -1,78 +1,31 @@
+// src/context/AppContext.jsx
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { useNavigate } from 'react-router-dom';
 
 const AppContext = createContext();
 
 const initialState = {
   user: null,
   profile: null,
-  foodItems: [],
-  vendors: [],
-  cart: [],
-  orders: [],
-  loading: true,
-  userRole: null
+  loading: true
 };
 
 function appReducer(state, action) {
   switch (action.type) {
     case 'SET_LOADING':
       return { ...state, loading: action.payload };
-    
     case 'SET_USER':
-      return { 
-        ...state, 
-        user: action.payload,
-        userRole: action.payload?.user_metadata?.role || null
-      };
-    
+      return { ...state, user: action.payload };
     case 'SET_PROFILE':
+      return { ...state, profile: action.payload };
+    case 'SET_AUTH_COMPLETE':
       return { 
         ...state, 
-        profile: action.payload,
-        userRole: action.payload?.role || null
+        user: action.payload.user, 
+        profile: action.payload.profile, 
+        loading: false 
       };
-    
-    case 'SET_FOOD_ITEMS':
-      return { ...state, foodItems: action.payload };
-    
-    case 'SET_VENDORS':
-      return { ...state, vendors: action.payload };
-    
-    case 'ADD_TO_CART':
-      const existingCartItem = state.cart.find(item => item.id === action.payload);
-      if (existingCartItem) {
-        return {
-          ...state,
-          cart: state.cart.map(item =>
-            item.id === action.payload
-              ? { ...item, cartQuantity: item.cartQuantity + 1 }
-              : item
-          )
-        };
-      } else {
-        const foodItem = state.foodItems.find(item => item.id === action.payload);
-        if (foodItem) {
-          return {
-            ...state,
-            cart: [...state.cart, { ...foodItem, cartQuantity: 1 }]
-          };
-        }
-        return state;
-      }
-    
-    case 'REMOVE_FROM_CART':
-      return {
-        ...state,
-        cart: state.cart.filter(item => item.id !== action.payload)
-      };
-    
-    case 'CLEAR_CART':
-      return { ...state, cart: [] };
-    
-    case 'SET_ORDERS':
-      return { ...state, orders: action.payload };
-    
     default:
       return state;
   }
@@ -80,191 +33,98 @@ function appReducer(state, action) {
 
 export function AppProvider({ children }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
+  const navigate = useNavigate();
 
-  // Auth actions
-  const signUp = async (email, password, userData) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          role: userData.role,
-          full_name: userData.fullName
-        }
-      }
-    });
-
-    if (error) throw error;
-    return data;
-  };
-
-  const signIn = async (email, password) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) throw error;
-    return data;
-  };
-
-  const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
-  };
-
-  // Check for active session on app start
   useEffect(() => {
-    const fetchInitialData = async () => {
+    const init = async () => {
       try {
-        // Fetch food items
-        const { data: foodData } = await supabase
-          .from('food_items')
-          .select('*')
-          .eq('is_active', true)
-          .order('created_at', { ascending: false });
+        const { data: { session } } = await supabase.auth.getSession();
         
-        if (foodData) {
-          dispatch({ type: 'SET_FOOD_ITEMS', payload: foodData });
-        }
+        if (session) {
+          dispatch({ type: 'SET_USER', payload: session.user });
+          
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
 
-        // Fetch vendors
-        const { data: vendorData } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('role', 'vendor')
-          .order('full_name');
-        
-        if (vendorData) {
-          dispatch({ type: 'SET_VENDORS', payload: vendorData });
+          if (profile) {
+            dispatch({ type: 'SET_PROFILE', payload: profile });
+            // ✅ CRITICAL FIX: Set loading to false AFTER profile is loaded
+            dispatch({ type: 'SET_LOADING', payload: false });
+            
+            // Only redirect if not already on the correct page
+            const currentPath = window.location.pathname;
+            const targetPath = profile.role === 'vendor' ? '/vendors' : '/students';
+            if (currentPath !== targetPath && currentPath !== '/') {
+              navigate(targetPath, { replace: true });
+            }
+          } else {
+            // Create minimal profile
+            const role = session.user.user_metadata?.role || 'student';
+            const { data: newProfile } = await supabase
+              .from('profiles')
+              .insert({
+                id: session.user.id,
+                role,
+                full_name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0],
+                verification_status: 'pending'
+              })
+              .select()
+              .single();
+            
+            dispatch({ type: 'SET_PROFILE', payload: newProfile });
+            // ✅ CRITICAL FIX: Set loading to false AFTER profile creation
+            dispatch({ type: 'SET_LOADING', payload: false });
+            
+            navigate(role === 'vendor' ? '/vendors' : '/students', { replace: true });
+          }
+        } else {
+          // ✅ No session - set loading to false
+          dispatch({ type: 'SET_LOADING', payload: false });
         }
       } catch (error) {
-        console.error('Error fetching initial data:', error);
+        console.error('Init error:', error);
+        // ✅ On error - set loading to false
+        dispatch({ type: 'SET_LOADING', payload: false });
       }
     };
 
-    // Safety timeout - wait up to 15 seconds for auth + data
-const timeoutId = setTimeout(() => {
-  console.warn('Auth/data load timeout — checking session manually...');
-  
-  
-  supabase.auth.getSession().then(({ data: { session } }) => {
-    if (session) {
-      dispatch({ type: 'SET_USER', payload: session.user });
-    
-      supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', session.user.id)
-        .single()
-        .then(({ data: profile }) => {
-          if (profile) {
-            dispatch({ type: 'SET_PROFILE', payload: profile });
-          }
-        });
-    }
-    dispatch({ type: 'SET_LOADING', payload: false });
-  });
-}, 15000); 
+    init();
 
-    const getSession = async () => {
-  try {
-    // 1. First, try to get session
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    
-    if (sessionError) {
-      console.error('Session error:', sessionError);
-      throw sessionError;
-    }
-
-    // 2. If no session, try to recover from URL (OAuth callback)
-    if (!session) {
-      const urlParams = new URLSearchParams(window.location.search);
-      const access_token = urlParams.get('access_token');
-      if (access_token) {
-        // Manually set session from OAuth callback
-        await supabase.auth.setSession({ access_token, refresh_token: urlParams.get('refresh_token') || '' });
-        const { data: { session: newSession } } = await supabase.auth.getSession();
-        if (newSession) {
-          dispatch({ type: 'SET_USER', payload: newSession.user });
-          console.log('✅ Recovered session from URL');
-        }
-      }
-    } else {
-      // 3. Valid session → set user
-      dispatch({ type: 'SET_USER', payload: session.user });
-      
-      // 4. Fetch profile — with timeout!
-      const profileTimeout = setTimeout(() => {
-        console.warn('Profile fetch timeout — using minimal profile');
-        dispatch({ type: 'SET_PROFILE', payload: { id: session.user.id, role: 'student' } });
-      }, 8000);
-      
-      try {
-        const { data: profile, error: profileError } = await supabase
+    // ✅ BONUS: Add auth state listener for real-time updates
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        dispatch({ type: 'SET_USER', payload: session.user });
+        
+        const { data: profile } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', session.user.id)
           .single();
         
-        clearTimeout(profileTimeout);
-        
-        if (profileError) {
-          console.error('Profile error:', profileError);
-          // Create minimal profile
-          dispatch({ 
-            type: 'SET_PROFILE', 
-            payload: { id: session.user.id, role: 'student' } 
-          });
-        } else {
-          dispatch({ type: 'SET_PROFILE', payload: profile });
-          console.log('✅ Profile loaded:', profile.role);
-        }
-      } catch (err) {
-        clearTimeout(profileTimeout);
-        console.error('Profile fetch failed:', err);
-        dispatch({ type: 'SET_PROFILE', payload: { id: session.user.id, role: 'student' } });
+        dispatch({ type: 'SET_PROFILE', payload: profile });
+        dispatch({ type: 'SET_LOADING', payload: false });
+      } else if (event === 'SIGNED_OUT') {
+        dispatch({ type: 'SET_USER', payload: null });
+        dispatch({ type: 'SET_PROFILE', payload: null });
+        dispatch({ type: 'SET_LOADING', payload: false });
       }
-    }
-  } catch (error) {
-    console.error('Auth error:', error);
-  } finally {
-    dispatch({ type: 'SET_LOADING', payload: false });
-  }
-};
+    });
 
-    // invoke the session loader
-    getSession();
+    return () => subscription?.unsubscribe();
+  }, [navigate]);
 
-    return () => {
-      clearTimeout(timeoutId);
-    };
-  }, []);
-
-  const value = {
-    // State
-    user: state.user,
-    profile: state.profile,
-    foodItems: state.foodItems,
-    vendors: state.vendors,
-    cart: state.cart,
-    orders: state.orders,
-    loading: state.loading,
-    userRole: state.userRole,
-    
-    // Dispatch
-    dispatch,
-    
-    // Auth actions
-    auth: {
-      signUp,
-      signIn,
-      signOut
-    }
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    dispatch({ type: 'SET_USER', payload: null });
+    dispatch({ type: 'SET_PROFILE', payload: null });
+    navigate('/auth');
   };
 
   return (
-    <AppContext.Provider value={value}>
+    <AppContext.Provider value={{ ...state, dispatch, auth: { signOut } }}>
       {children}
     </AppContext.Provider>
   );

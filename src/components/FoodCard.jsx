@@ -1,118 +1,108 @@
-import { useState, useEffect } from 'react';
+// src/components/FoodCard.jsx
+import { useNavigate } from 'react-router-dom';
 
 export default function FoodCard({ food }) {
+  const navigate = useNavigate();
   const [timeLeft, setTimeLeft] = useState('');
 
-  useEffect(() => {
-    const calculateTimeLeft = () => {
-      if (!food.expiry_date) return 'N/A';
-      
-      const now = new Date();
-      const expiry = new Date(food.expiry_date);
-      const diff = expiry - now;
-      
-      if (diff <= 0) return 'EXPIRED';
-      
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      
-      return `${hours}h ${minutes}m`;
-    };
-
-    setTimeLeft(calculateTimeLeft());
-    const timer = setInterval(() => {
-      setTimeLeft(calculateTimeLeft());
-    }, 60000);
-
-    return () => clearInterval(timer);
-  }, [food.expiry_date]);
-
-  const isExpired = timeLeft === 'EXPIRED';
-  const isOutOfStock = food.quantity === 0;
+  // ... (your existing time logic) ...
 
   return (
-    <div style={{
-      background: 'white',
-      borderRadius: '12px',
-      padding: '1.5rem',
-      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-      border: isExpired ? '2px solid #ef4444' : '1px solid #e5e7eb',
-      opacity: (isExpired || isOutOfStock) ? 0.7 : 1
-    }}>
-      {/* Expiry Timer */}
+    <div 
+      onClick={() => navigate(`/vendors/${food.vendor_id}`)} // ← KEY CHANGE
+      style={{
+        background: 'rgba(15,23,42,0.6)',
+        borderRadius: '20px',
+        border: '1px solid rgba(255,255,255,0.08)',
+        overflow: 'hidden',
+        cursor: 'pointer', // ← Indicates clickable
+        transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+      }}
+      onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-8px)'}
+      onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
+    >
+      {/* Food Image (Real or Emoji) */}
       <div style={{
-        background: isExpired 
-          ? '#fee2e2' 
-          : isOutOfStock 
-          ? '#f3f4f6' 
-          : '#ffedd5',
-        color: isExpired ? '#ef4444' : isOutOfStock ? '#6b7280' : '#9a3412',
-        padding: '8px 12px',
-        borderRadius: '8px',
-        fontSize: '0.85rem',
-        fontWeight: '600',
-        marginBottom: '1rem',
-        border: `1px solid ${isExpired ? '#fecaca' : isOutOfStock ? '#d1d5db' : '#fed7aa'}`
+        height: '180px',
+        background: food.image 
+          ? `url(${food.image}) center/cover no-repeat` 
+          : 'linear-gradient(135deg, rgba(16,185,129,0.1), rgba(59,130,246,0.1))',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: food.image ? '0' : '4rem',
+        color: '#fff'
       }}>
-        ⏰ {isExpired ? 'EXPIRED' : isOutOfStock ? 'OUT OF STOCK' : `Expires in: ${timeLeft}`}
+        {!food.image && (
+          food.category === 'Fruits' ? '🍎' : 
+          food.category === 'Vegetarian' ? '🥗' : 
+          food.category === 'Bakery' ? '🥐' : 
+          food.category === 'Beverages' ? '🥤' : '🍗'
+        )}
       </div>
 
-      {/* Food Info */}
-      <h3 style={{ margin: '0 0 0.75rem', color: '#1f2937' }}>
-        {food.name}
-      </h3>
-      
-      <p style={{ margin: '0.5rem 0', color: '#4b5563' }}>
-        <strong>Price:</strong> Frw {food.price.toLocaleString()}
-      </p>
-      
-      <p style={{ margin: '0.5rem 0', color: '#4b5563' }}>
-        <strong>📍 Location:</strong> {food.vendorLocation || 'Kigali'}
-      </p>
-      
-      <p style={{ 
-        margin: '0.5rem 0', 
-        color: '#059669', 
-        fontWeight: '600',
-        fontSize: '1.1rem'
-      }}>
-        📞 <strong>{food.vendorPhone || 'Contact vendor'}</strong>
-      </p>
-      
-      {food.quantity <= 3 && food.quantity > 0 && (
-        <p style={{ color: '#dc2626', fontWeight: '500', margin: '0.5rem 0' }}>
-          ⚠️ Only {food.quantity} left!
+      {/* Rest of your card content */}
+      <div style={{ padding: '1.5rem' }}>
+        <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.4rem', fontWeight: '700' }}>
+          {food.name}
+        </h3>
+        <p style={{ color: '#10b981', fontWeight: '700', fontSize: '1.2rem' }}>
+          Frw {food.price.toLocaleString()}
         </p>
-      )}
+        <p style={{ 
+          color: 'rgba(255,255,255,0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          marginBottom: '0.75rem'
+        }}>
+          🏪 <span style={{ fontWeight: '500' }}>{food.profiles?.full_name || 'Vendor'}</span>
+        </p>
+        
+        {/* Expiry & Stock */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          marginBottom: '1.25rem'
+        }}>
+          <span style={{
+            background: hoursLeft <= 2 ? 'rgba(239,68,68,0.2)' : 'rgba(16,185,129,0.2)',
+            color: hoursLeft <= 2 ? '#ef4444' : '#10b981',
+            padding: '4px 10px',
+            borderRadius: '20px',
+            fontSize: '0.85rem',
+            fontWeight: '600'
+          }}>
+            ⏰ {hoursLeft}h left
+          </span>
+          <span style={{
+            color: food.quantity <= 3 ? '#ef4444' : 'rgba(255,255,255,0.7)',
+            fontWeight: food.quantity <= 3 ? '600' : 'normal'
+          }}>
+            {food.quantity} left
+          </span>
+        </div>
 
-      {/* Contact Button */}
-      <button 
-        onClick={() => {
-          if (food.vendorPhone) {
-            alert(`📞 Call ${food.vendorPhone} to order ${food.name}!\n\n📍 Pickup at: ${food.vendorLocation}`);
-          } else {
-            alert('Vendor phone not available. Check back later.');
-          }
-        }}
-        disabled={isExpired || isOutOfStock}
-        style={{
-          background: (isExpired || isOutOfStock) 
-            ? '#d1d5db' 
-            : '#059669',
-          color: 'white',
-          border: 'none',
-          padding: '12px',
-          borderRadius: '8px',
-          fontWeight: '600',
-          cursor: (isExpired || isOutOfStock) ? 'not-allowed' : 'pointer',
-          width: '100%',
-          marginTop: '1rem',
-          fontSize: '1rem'
-        }}
-      >
-        {isExpired ? '❌ Expired' : 
-         isOutOfStock ? '🚫 Out of Stock' : '📞 Contact Vendor'}
-      </button>
+        {/* CTA Button — Still Works */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation(); // ← Prevents navigation on button click
+            alert(`📞 Call ${food.profiles?.phone} to order!`);
+          }}
+          style={{
+            width: '100%',
+            padding: '12px',
+            background: 'linear-gradient(135deg, rgba(16,185,129,0.9), rgba(5,150,105,0.9))',
+            color: 'white',
+            border: 'none',
+            borderRadius: '12px',
+            fontWeight: '600',
+            cursor: 'pointer'
+          }}
+        >
+          📞 Contact Vendor
+        </button>
+      </div>
     </div>
   );
 }

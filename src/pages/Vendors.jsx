@@ -1,19 +1,29 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { supabase } from '../lib/supabase';
-import VendorForm from '../components/Vendorform';
-import FoodCard from '../components/FoodCard';
-import { deactivateExpiredItems } from '../utils/expiryHandler';
+import VendorForm from '../components/VendorForm';
 
-function Vendors() {
-  const { profile } = useApp();
+export default function Vendors() {
+  const { profile, loading: appLoading } = useApp(); // ← Add appLoading
+  const navigate = useNavigate();
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [vendorItems, setVendorItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchVendorItems = useCallback(async () => {
-    if (!profile) return;
+  useEffect(() => {
+    if (profile && profile.role !== 'vendor') {
+      navigate('/students');
+    }
+  }, [profile, navigate]);
+
+  const fetchVendorItems = async () => {
+    // ✅ FIX: Always set loading to false, even if no profile
+    if (!profile?.id) {
+      setLoading(false);
+      return;
+    }
     
     try {
       const { data, error } = await supabase
@@ -21,46 +31,39 @@ function Vendors() {
         .select('*')
         .eq('vendor_id', profile.id)
         .order('created_at', { ascending: false });
-
+      
       if (error) throw error;
       setVendorItems(data || []);
     } catch (error) {
-      console.error('Error fetching vendor items:', error);
+      console.error('Error:', error.message);
     } finally {
-      setLoading(false);
+      setLoading(false); // ← This was already here, but now the early return is fixed
     }
-  }, [profile]);
+  };
 
   useEffect(() => {
-    deactivateExpiredItems();
-    fetchVendorItems();
-    
-    const interval = setInterval(() => {
-      deactivateExpiredItems();
+    // ✅ FIX: Wait for AppContext to finish loading before fetching items
+    if (!appLoading) {
       fetchVendorItems();
-    }, 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [fetchVendorItems]);
+    }
+  }, [profile, appLoading]);
 
   const handleEdit = (item) => {
     setEditingItem(item);
     setShowForm(true);
   };
 
-  const handleDelete = async (itemId) => {
-    if (!window.confirm('🗑️ Delete this item? Students won\'t see it anymore.')) return;
-    
+  const handleDelete = async (id) => {
+    if (!confirm('🗑️ Delete this item?')) return;
     try {
       const { error } = await supabase
         .from('food_items')
         .delete()
-        .eq('id', itemId);
-
+        .eq('id', id);
       if (error) throw error;
-      await fetchVendorItems();
+      fetchVendorItems();
     } catch (error) {
-      console.error('Error deleting item:', error);
-      alert('❌ Deletion failed. Try again.');
+      alert('❌ Delete failed');
     }
   };
 
@@ -72,309 +75,117 @@ function Vendors() {
 
   const handleSeedData = async () => {
     if (!profile) return;
-    
-    if (!window.confirm('🌱 Add 15 sample food items in RWF? (Kigali locations, moto delivery)')) return;
-    
-    const seedItems = [
-      { name: 'Pizza Slices', price: 1500, quantity: 12, category: 'Fast Food', image: '🍕', location: 'Kigali, Gasabo' },
-      { name: 'Sandwich Pack', price: 2500, quantity: 8, category: 'Lunch', image: '🥪', location: 'Kigali, Nyarugenge' },
-      { name: 'Fruit Salad', price: 2000, quantity: 15, category: 'Healthy', image: '🥗', location: 'Kigali, Kicukiro' },
-      { name: 'Croissants', price: 800, quantity: 20, category: 'Bakery', image: '🥐', location: 'Butare' },
-      { name: 'Soup & Bread', price: 1800, quantity: 10, category: 'Dinner', image: '🍲', location: 'Kigali, Gasabo' },
-      { name: 'Chicken Wrap', price: 2200, quantity: 9, category: 'Fast Food', image: '🌯', location: 'Kigali, Nyarugenge' },
-      { name: 'Mixed Fruit Bowl', price: 1600, quantity: 14, category: 'Healthy', image: '🍓', location: 'Kigali, Kicukiro' },
-      { name: 'Pasta Meal', price: 3000, quantity: 6, category: 'Dinner', image: '🍝', location: 'Butare' },
-      { name: 'Muffins', price: 700, quantity: 18, category: 'Bakery', image: '🧁', location: 'Kigali, Gasabo' },
-      { name: 'Grilled Chicken', price: 3500, quantity: 7, category: 'Dinner', image: '🍗', location: 'Kigali, Nyarugenge' },
-      { name: 'Veg Stir Fry', price: 2000, quantity: 11, category: 'Vegetarian', image: '🥦', location: 'Kigali, Kicukiro' },
-      { name: 'Burrito Bowl', price: 2700, quantity: 13, category: 'Lunch', image: '🌮', location: 'Butare' },
-      { name: 'Sushi Set', price: 4000, quantity: 5, category: 'Ready-to-eat', image: '🍣', location: 'Kigali, Gasabo' },
-      { name: 'Cookies', price: 600, quantity: 24, category: 'Bakery', image: '🍪', location: 'Kigali, Nyarugenge' },
-      { name: 'Caesar Salad', price: 2400, quantity: 10, category: 'Healthy', image: '🥬', location: 'Kigali, Kicukiro' },
-    ].map(item => ({
-      name: item.name,
-      price: item.price,
-      quantity: item.quantity,
-      category: item.category,
-      expiry_date: new Date(Date.now() + Math.floor(Math.random() * 48) * 60 * 60 * 1000).toISOString(),
-      image: item.image,
-      description: `Fresh surplus food from ${profile.full_name}'s kitchen`,
+    if (!confirm('🌱 Add 10 sample items (RWF)?')) return;
+
+    const items = Array.from({ length: 10 }, (_, i) => ({
+      name: ['Pizza Slices', 'Fruit Salad', 'Sandwich Pack', 'Croissants', 'Soup & Bread'][i % 5],
+      price: [1500, 2000, 2500, 800, 1800][i % 5],
+      quantity: 5 + i,
+      category: ['Fast Food', 'Healthy', 'Lunch', 'Bakery', 'Dinner'][i % 5],
+      expiry_date: new Date(Date.now() + (i + 1) * 2 * 60 * 60 * 1000).toISOString(),
+      description: `Fresh surplus food from ${profile.full_name || 'vendor'}`,
       vendor_id: profile.id,
       is_active: true,
-      location: item.location
+      location: ['Kigali, Gasabo', 'Kigali, Nyarugenge', 'Kigali, Kicukiro', 'Butare'][i % 4]
     }));
 
     try {
-      const { error } = await supabase.from('food_items').insert(seedItems);
+      const { error } = await supabase.from('food_items').insert(items);
       if (error) throw error;
-      alert('✅ 15 sample items added (RWF pricing, Rwanda locations)');
+      alert('✅ 10 items added!');
       fetchVendorItems();
     } catch (error) {
-      console.error('Error seeding ', error);
-      alert('❌ Seed failed: ' + (error.message || 'Unknown error'));
+      alert('❌ Failed: ' + error.message);
     }
   };
 
-  if (loading) {
+  // ✅ Show loading while AppContext is still initializing
+  if (appLoading || loading) {
     return (
-      <div style={{
-        minHeight: '60vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'rgba(10,10,10,0.95)',
-        color: 'white'
-      }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>🏪</div>
-          <p>Loading your dashboard...</p>
-        </div>
+      <div style={{ padding: '2rem', textAlign: 'center', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🏪</div>
+        <p style={{ fontSize: '1.2rem', color: '#666' }}>Loading vendor dashboard...</p>
       </div>
     );
   }
 
-  // Stats
-  const totalListings = vendorItems.length;
-  const lowStock = vendorItems.filter(item => item.quantity > 0 && item.quantity <= 3).length;
-  const outOfStock = vendorItems.filter(item => item.quantity === 0).length;
-  const todayExpired = vendorItems.filter(item => 
-    item.expiry_date && new Date(item.expiry_date) <= new Date()
-  ).length;
+  // ✅ Show message if no profile yet
+  if (!profile) {
+    return (
+      <div style={{ padding: '2rem', textAlign: 'center' }}>
+        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚠️</div>
+        <p>Profile not found. Please sign in again.</p>
+        <button onClick={() => navigate('/auth')} style={{ padding: '10px 20px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '4px' }}>
+          Go to Login
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div style={{
-      maxWidth: '1400px',
-      margin: '0 auto',
-      padding: '0 1rem 4rem'
-    }}>
-      {/* Header */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        marginBottom: '2rem',
-        flexWrap: 'wrap',
-        gap: '1rem'
-      }}>
+    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '1rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem' }}>
         <div>
-          <h1 style={{ 
-            margin: 0, 
-            fontSize: '2.2rem',
-            fontWeight: '800',
-            color: '#fff'
-          }}>
-            Vendor Dashboard
-          </h1>
-          <p style={{ 
-            color: 'rgba(255,255,255,0.8)',
-            fontSize: '1.1rem'
-          }}>
-            Manage surplus food • Support community • Earn extra income 🇷🇼
-          </p>
+          <h1 style={{ margin: 0, fontSize: '1.8rem' }}>Vendor Dashboard</h1>
+          <p style={{ color: '#666', margin: 0 }}>Welcome, {profile.full_name || 'Vendor'}!</p>
         </div>
-        
-        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-          <button
-            onClick={handleSeedData}
-            style={{
-              padding: '12px 20px',
-              background: 'rgba(107, 114, 128, 0.2)',
-              color: '#9ca3af',
-              border: '1px solid rgba(107, 114, 128, 0.3)',
-              borderRadius: '14px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              fontSize: '0.9rem',
-              transition: 'all 0.3s ease'
-            }}
-          >
-            🌱 Seed Data (RWF)
-          </button>
-          <button
-            onClick={() => setShowForm(true)}
-            style={{
-              padding: '12px 24px',
-              background: 'linear-gradient(135deg, #059669, #047857)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '14px',
-              fontWeight: '700',
-              fontSize: '1rem',
-              boxShadow: '0 4px 20px rgba(5, 150, 105, 0.3)',
-              transition: 'all 0.3s ease'
-            }}
-          >
-            + Add Food Item
-          </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button onClick={handleSeedData} style={{ padding: '8px 16px', background: '#999', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>🌱 Seed Data</button>
+          <button onClick={() => setShowForm(true)} style={{ padding: '8px 16px', background: '#059669', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>+ Add Food</button>
         </div>
       </div>
 
-      {/* Stats */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-        gap: '1.25rem',
-        marginBottom: '2.5rem'
-      }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
         {[
-          { label: 'Active Listings', value: totalListings, color: '#059669', icon: '🍽️' },
-          { label: 'Low Stock', value: lowStock, color: '#f59e0b', icon: '⚠️' },
-          { label: 'Out of Stock', value: outOfStock, color: '#ef4444', icon: '❌' },
-          { label: 'Expired Today', value: todayExpired, color: '#8b5cf6', icon: '⏰' }
-        ].map((stat, i) => (
-          <div key={i} style={{
-            background: 'rgba(255,255,255,0.03)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            borderRadius: '16px',
-            padding: '1.5rem',
-            textAlign: 'center'
-          }}>
-            <div style={{ fontSize: '1.8rem', marginBottom: '0.5rem' }}>{stat.icon}</div>
-            <h3 style={{ 
-              color: stat.color, 
-              fontSize: '2rem', 
-              margin: '0 0 0.25rem',
-              fontWeight: '700'
-            }}>
-              {stat.value}
-            </h3>
-            <p style={{ color: 'rgba(255,255,255,0.7)', margin: 0, fontSize: '0.95rem' }}>
-              {stat.label}
-            </p>
+          { label: 'Active Listings', value: vendorItems.length, color: '#059669' },
+          { label: 'Low Stock', value: vendorItems.filter(i => i.quantity > 0 && i.quantity <= 3).length, color: '#f59e0b' },
+          { label: 'Out of Stock', value: vendorItems.filter(i => i.quantity === 0).length, color: '#ef4444' }
+        ].map((s, i) => (
+          <div key={i} style={{ background: 'white', padding: '1rem', borderRadius: '8px', textAlign: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+            <div style={{ fontSize: '1.8rem', color: s.color, fontWeight: 'bold' }}>{s.value}</div>
+            <div style={{ fontSize: '0.85rem', color: '#666', marginTop: '0.25rem' }}>{s.label}</div>
           </div>
         ))}
       </div>
 
-      {/* Add/Edit Form Modal */}
       {showForm && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0,0,0,0.7)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          padding: '1rem'
-        }}>
-          <div style={{
-            background: 'rgba(10,10,10,0.95)',
-            borderRadius: '20px',
-            border: '1px solid rgba(45,212,191,0.2)',
-            maxWidth: '800px',
-            width: '100%',
-            maxHeight: '90vh',
-            overflowY: 'auto'
-          }}>
-            <VendorForm 
-              editingItem={editingItem}
-              onCancel={handleFormClose}
-              onSuccess={handleFormClose}
-            />
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div style={{ background: 'white', maxWidth: '500px', width: '90%', maxHeight: '90vh', overflowY: 'auto', borderRadius: '8px' }}>
+            <VendorForm editingItem={editingItem} onCancel={handleFormClose} onSuccess={handleFormClose} />
           </div>
         </div>
       )}
 
-      {/* Food Items Grid */}
       {vendorItems.length === 0 ? (
-        <div style={{
-          textAlign: 'center',
-          padding: '4rem 2rem',
-          background: 'rgba(255,255,255,0.03)',
-          borderRadius: '16px',
-          border: '1px solid rgba(255,255,255,0.08)'
-        }}>
-          <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🏪</div>
-          <h3 style={{ color: 'rgba(255,255,255,0.8)', marginBottom: '1rem' }}>
-            No food items listed
-          </h3>
-          <p style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '2rem' }}>
-            Add surplus food to help students and earn extra income!
-          </p>
-          <button
-            onClick={() => setShowForm(true)}
-            style={{
-              padding: '14px 28px',
-              background: 'linear-gradient(135deg, #059669, #047857)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '14px',
-              fontWeight: '700'
-            }}
-          >
-            + Add Your First Item
-          </button>
+        <div style={{ textAlign: 'center', padding: '3rem', background: 'white', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+          <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🍽️</div>
+          <h3 style={{ marginBottom: '0.5rem' }}>No food items yet</h3>
+          <p style={{ color: '#666', marginBottom: '1.5rem' }}>Start by adding your first surplus food item!</p>
+          <button onClick={() => setShowForm(true)} style={{ padding: '12px 24px', background: '#059669', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '1rem', fontWeight: '600' }}>+ Add Your First Item</button>
         </div>
       ) : (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
-          gap: '1.75rem',
-          marginBottom: '3rem'
-        }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
           {vendorItems.map(item => (
-            <div key={item.id} style={{ position: 'relative' }}>
-              <FoodCard food={item} />
-              
-              {/* Edit/Delete */}
-              <div style={{
-                position: 'absolute',
-                top: '12px',
-                right: '12px',
-                display: 'flex',
-                gap: '0.6rem'
-              }}>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleEdit(item);
-                  }}
-                  style={{
-                    background: 'linear-gradient(135deg, #0ea5e9, #0284c7)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '10px',
-                    padding: '8px 16px',
-                    fontSize: '0.875rem',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    boxShadow: '0 2px 8px rgba(14, 165, 233, 0.3)'
-                  }}
-                >
-                  ✏️ Edit
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDelete(item.id);
-                  }}
-                  style={{
-                    background: 'linear-gradient(135deg, #ef4444, #b91c1c)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '10px',
-                    padding: '8px 16px',
-                    fontSize: '0.875rem',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    boxShadow: '0 2px 8px rgba(239, 68, 68, 0.3)'
-                  }}
-                >
-                  🗑️ Delete
-                </button>
+            <div key={item.id} style={{ background: 'white', borderRadius: '8px', padding: '1.25rem', border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+              <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.1rem' }}>{item.name}</h3>
+              <p style={{ margin: '0.5rem 0', color: '#059669', fontWeight: '600' }}>Frw {item.price.toLocaleString()}</p>
+              <p style={{ margin: '0.5rem 0', color: item.quantity <= 3 ? '#ef4444' : '#666' }}>
+                {item.quantity > 0 ? `${item.quantity} left` : '❌ Out of stock'}
+              </p>
+              <p style={{ margin: '0.5rem 0', fontSize: '0.9rem', color: '#666' }}>📍 {item.location || 'Kigali'}</p>
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+                <button onClick={() => handleEdit(item)} style={{ flex: 1, padding: '8px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem' }}>✏️ Edit</button>
+                <button onClick={() => handleDelete(item.id)} style={{ flex: 1, padding: '8px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem' }}>🗑️ Delete</button>
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Payments */}
-      <VendorPayments />
+      <div style={{ marginTop: '2rem', background: '#f0fdf4', padding: '1.5rem', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
+        <h3 style={{ margin: '0 0 0.75rem', color: '#059669' }}>💡 Pro Tip</h3>
+        <p style={{ margin: 0, color: '#065f46' }}>Keep your listings updated! Students search for fresh food near them.</p>
+      </div>
     </div>
   );
 }
-
-export default Vendors;
