@@ -1,11 +1,30 @@
-// src/components/FoodCard.jsx
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export default function FoodCard({ food }) {
   const navigate = useNavigate();
   const [timeLeft, setTimeLeft] = useState('');
 
-  // ... (your existing time logic) ...
+  useEffect(() => {
+    if (!food.expiry_date) return;
+
+    const interval = setInterval(() => {
+      const now = new Date();
+      const expiry = new Date(food.expiry_date);
+      const diff = expiry - now;
+
+      if (diff <= 0) {
+        setTimeLeft('Expired');
+        clearInterval(interval);
+      } else {
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        setTimeLeft(`${hours}h ${minutes}m`);
+      }
+    }, 60000); // Update every minute
+
+    return () => clearInterval(interval);
+  }, [food.expiry_date]);
 
   return (
     <div 
