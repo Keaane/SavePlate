@@ -1,98 +1,179 @@
-# SavePlate - Surplus Food Redistribution Platform
+# SavePlate
 
-SavePlate connects surplus food from vendors (restaurants, cafes, supermarkets) with students and low-income communities in Africa, reducing food waste while providing affordable meals.
+A surplus food redistribution platform connecting vendors with students and communities in Africa. Reduce food waste while providing affordable meals.
 
 ## Features
 
-- **Vendor Management**: Verified vendors can list surplus food with expiry timers
-- **Student Dashboard**: Browse available food items with real-time availability
-- **In-App Notifications**: Get notified when favorite vendors post new food
-- **Rating System**: Rate and review vendors based on food quality
-- **Reporting System**: Report issues with vendors or food items
-- **Admin Dashboard**: Manage vendors, listings, and user reports
+- **Vendor Management**: Verified vendors list surplus food with expiry timers
+- **Student Dashboard**: Browse, search, and filter available food items
+- **Notifications**: Get alerts when favorite vendors post new food
+- **Ratings & Reviews**: Rate vendors based on food quality
+- **Reporting System**: Report issues for admin review
+- **Admin Dashboard**: Manage vendors, listings, and reports
 
 ## Tech Stack
 
 - **Frontend**: React 18 + Vite
 - **Backend**: Supabase (PostgreSQL, Auth, Storage)
-- **Routing**: React Router DOM
-- **Styling**: Inline styles (no CSS framework)
+- **Hosting**: Vercel or Netlify
 
-## Quick Start
+---
+
+## Quick Start Guide
 
 ### Prerequisites
 
-- Node.js 18+ and npm
-- Supabase account and project
+- Node.js 18 or higher
+- npm (comes with Node.js)
+- A Supabase account (free at [supabase.com](https://supabase.com))
 
-### Installation
+### Step 1: Clone and Install
 
-1. Clone the repository:
 ```bash
+# Clone the repository
 git clone <your-repo-url>
 cd saveplate
-```
 
-2. Install dependencies:
-```bash
+# Install dependencies
 npm install
 ```
 
-3. Set up Supabase (see `SETUP_INSTRUCTIONS.md`):
-   - Run `database_setup.sql` in Supabase SQL Editor
-   - Create storage buckets (see `STORAGE_SETUP.md`)
+### Step 2: Set Up Supabase
 
-4. Start development server:
+1. Create a new project at [supabase.com](https://supabase.com)
+2. Go to **Project Settings > API** and copy:
+   - Project URL
+   - anon/public key
+
+3. Create a `.env` file in the project root:
+
+```env
+VITE_SUPABASE_URL=your-project-url
+VITE_SUPABASE_ANON_KEY=your-anon-key
+```
+
+### Step 3: Set Up Database
+
+1. Go to Supabase Dashboard > **SQL Editor**
+2. Open `sql/00_RUN_ALL.sql` from this project
+3. Copy the entire contents and paste into SQL Editor
+4. Click **Run**
+
+### Step 4: Set Up Storage Buckets
+
+1. Go to Supabase Dashboard > **Storage**
+2. Click **New bucket**
+3. Create `food-images`:
+   - Name: `food-images`
+   - Public bucket: **YES** (checked)
+4. Create `vendor-docs`:
+   - Name: `vendor-docs`
+   - Public bucket: **NO** (unchecked)
+5. Go back to SQL Editor and run `sql/06_storage_policies.sql`
+
+### Step 5: Run the App
+
 ```bash
 npm run dev
 ```
 
-## Setup Instructions
+Open [http://localhost:5173](http://localhost:5173) in your browser.
 
-1. **Database Setup**: See `SETUP_INSTRUCTIONS.md`
-2. **Storage Setup**: See `STORAGE_SETUP.md` (required for image uploads)
-3. **Environment Variables** (optional): Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in `.env` file
+### Step 6: Create Admin User
+
+1. Sign up in the app with your email
+2. Go to Supabase Dashboard > **SQL Editor**
+3. Run:
+
+```sql
+UPDATE profiles
+SET role = 'admin', verification_status = 'verified', is_verified = true
+WHERE id = (SELECT id FROM profiles ORDER BY created_at ASC LIMIT 1);
+```
+
+4. Log out and log back in to access `/admin`
+
+---
 
 ## Deployment
 
-See `DEPLOYMENT.md` for detailed deployment instructions.
+### Deploy to Vercel (Recommended)
 
-**Quick Deploy (Vercel - Recommended):**
-```bash
-npm run build
-vercel
-```
+1. Push your code to GitHub
+2. Go to [vercel.com](https://vercel.com) and import your repository
+3. Add environment variables:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
+4. Click Deploy
 
-Or connect your GitHub repo to Vercel for automatic deployments.
+### Deploy to Netlify
+
+1. Push your code to GitHub
+2. Go to [netlify.com](https://netlify.com) and import your repository
+3. Build command: `npm run build`
+4. Publish directory: `dist`
+5. Add environment variables in Site Settings
+
+---
 
 ## Project Structure
 
 ```
 saveplate/
 ├── src/
-│   ├── components/     # Reusable components
-│   ├── pages/          # Page components
-│   ├── context/        # React context (AppContext)
+│   ├── components/     # Reusable UI components
+│   ├── pages/          # Page components (routes)
+│   ├── context/        # React context (global state)
 │   ├── lib/            # Supabase client
 │   └── utils/          # Utility functions
-├── database_setup.sql  # Database schema
-├── STORAGE_SETUP.md    # Storage bucket setup
-├── DEPLOYMENT.md       # Deployment guide
-└── SETUP_INSTRUCTIONS.md
+├── sql/                # Database setup scripts
+├── public/             # Static assets
+└── dist/               # Production build
 ```
 
-## Documentation
+---
 
-- `SETUP_INSTRUCTIONS.md` - Complete setup guide
-- `DEPLOYMENT.md` - Deployment instructions
-- `STORAGE_SETUP.md` - Supabase storage configuration
-- `MINIMAL_MVP_SCOPE.md` - MVP feature list
-- `IMPLEMENTATION_SUMMARY.md` - Implementation details
+## User Roles
+
+| Role | Access |
+|------|--------|
+| **Student** | Browse food, contact vendors, rate/review, report |
+| **Vendor** | List food, manage listings, view orders |
+| **Admin** | Verify vendors, manage reports, view analytics |
+
+---
+
+## SQL Files Reference
+
+Run these in order if `00_RUN_ALL.sql` fails:
+
+| File | Description |
+|------|-------------|
+| `01_core_tables.sql` | Creates profiles and food_items tables |
+| `02_feature_tables.sql` | Creates notifications, favorites, reports, reviews |
+| `03_rls_policies.sql` | Row Level Security policies |
+| `04_functions_triggers.sql` | Database functions and triggers |
+| `05_grants_permissions.sql` | User permissions |
+| `06_storage_policies.sql` | Storage bucket policies |
+| `07_seed_admin.sql` | Create admin user |
+
+---
+
+## Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `VITE_SUPABASE_URL` | Your Supabase project URL |
+| `VITE_SUPABASE_ANON_KEY` | Your Supabase anon/public key |
+
+---
+
+## Support
+
+For issues or questions, please open an issue on GitHub.
+
+---
 
 ## License
 
-MIT
-
-## Contributing
-
-This is a project for addressing food waste in African communities. Contributions are welcome!
+MIT License

@@ -31,8 +31,6 @@ export const deactivateExpiredItems = async () => {
 
       if (updateError) {
         console.error('Error deactivating expired items:', updateError);
-      } else {
-        console.log(`✅ Deactivated ${expiredItems.length} expired food item(s)`);
       }
     }
   } catch (error) {

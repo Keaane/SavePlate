@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { supabase } from '../lib/supabase';
 import { getVendorRatingsBatch } from '../utils/vendorRatings';
+import { deactivateExpiredItems } from '../utils/expiryHandler';
 
 export default function Students() {
   const { user, profile, auth } = useApp();
@@ -14,10 +15,17 @@ export default function Students() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedVendor, setSelectedVendor] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedLocation, setSelectedLocation] = useState('');
+  const [favorites, setFavorites] = useState([]);
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // Automatically deactivate expired items
+        await deactivateExpiredItems();
+        
         // Fetch active food items with vendor details
         const { data: foodData, error: foodError } = await supabase
           .from('food_items')
@@ -51,6 +59,16 @@ export default function Students() {
           const ratings = await getVendorRatingsBatch(vendorIds);
           setVendorRatings(ratings);
         }
+
+        // Fetch user favorites if logged in
+        if (user) {
+          const { data: favoritesData } = await supabase
+            .from('favorites')
+            .select('vendor_id')
+            .eq('user_id', user.id);
+          
+          setFavorites((favoritesData || []).map(f => f.vendor_id));
+        }
       } catch (error) {
         console.error('Fetch error:', error);
       } finally {
@@ -59,19 +77,38 @@ export default function Students() {
     };
 
     fetchData();
-  }, []);
+  }, [user]);
 
   const filteredFood = foodItems.filter(item => {
     const isExpired = item.expiry_date ? new Date(item.expiry_date) <= new Date() : false;
     if (item.quantity <= 0 || isExpired) return false;
     
+    // Filter by selected vendor
+    if (selectedVendor && item.vendor_id !== selectedVendor.id) return false;
+    
+    // Filter by favorites only
+    if (showFavoritesOnly && !favorites.includes(item.vendor_id)) return false;
+    
+    // Filter by category
+    if (selectedCategory && item.category !== selectedCategory) return false;
+    
+    // Filter by location
+    if (selectedLocation && item.profiles?.location !== selectedLocation) return false;
+    
+    // Filter by search term
     const matchesSearch = !searchTerm || 
       item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.profiles?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.category?.toLowerCase().includes(searchTerm.toLowerCase());
+      item.profiles?.business_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.profiles?.location?.toLowerCase().includes(searchTerm.toLowerCase());
     
     return matchesSearch;
   });
+
+  // Get unique categories and locations for filters
+  const categories = [...new Set(foodItems.map(item => item.category).filter(Boolean))];
+  const locations = [...new Set(foodItems.map(item => item.profiles?.location).filter(Boolean))];
 
   const getHoursLeft = (expiry) => {
     if (!expiry) return null;
@@ -252,6 +289,99 @@ export default function Students() {
             fontSize: '1.2rem'
           }}>🔍</div>
         </div>
+
+        {/* Filters */}
+        <div style={{
+          maxWidth: '1200px',
+          margin: '2rem auto 0',
+          display: 'flex',
+          gap: '1rem',
+          flexWrap: 'wrap',
+          justifyContent: 'center',
+          alignItems: 'center'
+        }}>
+          <button
+            onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+            style={{
+              padding: '10px 20px',
+              background: showFavoritesOnly 
+                ? 'linear-gradient(135deg, #f59e0b, #d97706)' 
+                : 'rgba(255,255,255,0.05)',
+              border: `1px solid ${showFavoritesOnly ? 'rgba(245,158,11,0.5)' : 'rgba(255,255,255,0.1)'}`,
+              borderRadius: '12px',
+              color: 'white',
+              cursor: 'pointer',
+              fontSize: '0.9rem',
+              fontWeight: '500',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}
+          >
+            ⭐ {showFavoritesOnly ? 'Showing Favorites' : 'Show Favorites Only'}
+          </button>
+
+          <select
+            value={selectedCategory}
+            onChange={e => setSelectedCategory(e.target.value)}
+            style={{
+              padding: '10px 20px',
+              borderRadius: '12px',
+              border: '1px solid rgba(255,255,255,0.1)',
+              background: 'rgba(15,23,42,0.7)',
+              color: 'white',
+              fontSize: '0.9rem',
+              cursor: 'pointer'
+            }}
+          >
+            <option value="">All Categories</option>
+            {categories.map(cat => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
+
+          <select
+            value={selectedLocation}
+            onChange={e => setSelectedLocation(e.target.value)}
+            style={{
+              padding: '10px 20px',
+              borderRadius: '12px',
+              border: '1px solid rgba(255,255,255,0.1)',
+              background: 'rgba(15,23,42,0.7)',
+              color: 'white',
+              fontSize: '0.9rem',
+              cursor: 'pointer'
+            }}
+          >
+            <option value="">All Locations</option>
+            {locations.map(loc => (
+              <option key={loc} value={loc}>{loc}</option>
+            ))}
+          </select>
+
+          {(selectedCategory || selectedLocation || showFavoritesOnly || selectedVendor) && (
+            <button
+              onClick={() => {
+                setSelectedCategory('');
+                setSelectedLocation('');
+                setShowFavoritesOnly(false);
+                setSelectedVendor(null);
+              }}
+              style={{
+                padding: '10px 20px',
+                background: 'rgba(239,68,68,0.2)',
+                border: '1px solid rgba(239,68,68,0.3)',
+                borderRadius: '12px',
+                color: '#ef4444',
+                cursor: 'pointer',
+                fontSize: '0.9rem',
+                fontWeight: '500'
+              }}
+            >
+              Clear Filters
+            </button>
+          )}
+        </div>
       </section>
 
       <div className="container" style={{ 
@@ -414,25 +544,92 @@ export default function Students() {
                     }}
                   >
                     👤 View Profile
-=======
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Favorites Section */}
+            {favorites.length > 0 && (
+              <>
+                <h2 style={{ 
+                  fontSize: '1.4rem',
+                  marginTop: '2rem',
+                  marginBottom: '1.5rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
                 }}>
-                  <span style={{
-                    background: 'rgba(16,185,129,0.2)',
-                    color: '#10b981',
-                    padding: '4px 10px',
-                    borderRadius: '20px',
-                    fontSize: '0.75rem',
-                    fontWeight: '600'
-                  }}>
-                    ✅ Verified
-                  </span>
-                  <button
-                    onClick={e => {
-                      e.stopPropagation();
-                      alert(`📞 Call ${vendor.phone} to order from ${vendor.full_name}`);
-                    }}
+                  ⭐ Favorite Vendors ({favorites.length})
+                </h2>
+                <div style={{ 
+                  maxHeight: '400px',
+                  overflowY: 'auto',
+                  paddingRight: '10px'
+                }}>
+                  {vendors
+                    .filter(v => favorites.includes(v.id))
+                    .map(vendor => (
+                      <div 
+                        key={vendor.id}
+                        style={{
+                          background: 'rgba(245,158,11,0.1)',
+                          border: '1px solid rgba(245,158,11,0.3)',
+                          borderRadius: '14px',
+                          padding: '1rem',
+                          marginBottom: '1rem',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                        }}
+                        onClick={() => {
+                          setSelectedVendor(selectedVendor?.id === vendor.id ? null : vendor);
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+                        onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
+                      >
+                        <h3 style={{ 
+                          margin: '0 0 0.5rem', 
+                          fontSize: '1rem',
+                          fontWeight: '600'
+                        }}>
+                          {vendor.business_name || vendor.full_name}
+                        </h3>
+                        <p style={{ 
+                          margin: 0, 
+                          fontSize: '0.85rem',
+                          color: 'rgba(255,255,255,0.6)'
+                        }}>
+                          📍 {vendor.location}
+                        </p>
+                        <button
+                          onClick={e => {
+                            e.stopPropagation();
+                            navigate(`/vendors/${vendor.id}`);
+                          }}
+                          style={{
+                            marginTop: '0.75rem',
+                            width: '100%',
+                            padding: '8px',
+                            background: 'rgba(245,158,11,0.2)',
+                            border: '1px solid rgba(245,158,11,0.4)',
+                            borderRadius: '8px',
+                            color: '#f59e0b',
+                            fontSize: '0.85rem',
+                            fontWeight: '600',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          View Profile
+                        </button>
+                      </div>
+                    ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Main Content: Food Items */}
                     style={{
                       padding: '6px 14px',
                       background: 'rgba(16,185,129,0.3)',

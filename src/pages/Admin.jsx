@@ -16,14 +16,17 @@ function Admin() {
     try {
       setLoading(true);
       
-      // Fetch vendors with auth email
+      // Fetch vendors
       const { data: vendorData, error: vendorError } = await supabase
-        .rpc('get_vendors_with_auth'); // We'll create this SQL function below
+        .from('profiles')
+        .select('*')
+        .eq('role', 'vendor')
+        .order('created_at', { ascending: false });
       
       if (vendorError) throw vendorError;
 
       // Fetch food items
-      const {  foodData, error: foodError } = await supabase
+      const { data: foodData, error: foodError } = await supabase
         .from('food_items')
         .select('*, profiles(full_name, location, phone)')
         .order('created_at', { ascending: false });

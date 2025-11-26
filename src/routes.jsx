@@ -1,4 +1,3 @@
-// src/routes.jsx
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useApp } from './context/AppContext';
 
@@ -9,6 +8,7 @@ import Vendors from './pages/Vendors';
 import VendorDetail from './pages/VendorDetail';
 import VendorOnboarding from './pages/VendorOnboarding';
 import Admin from './pages/Admin';
+import Profile from './pages/Profile';
 
 function ProtectedRoute({ children, role }) {
   const { profile, loading } = useApp();
@@ -37,15 +37,8 @@ function VendorOnboardingRoute({ children }) {
                      profile.verification_status !== undefined &&
                      profile.verification_status !== '');
   
-  console.log('VendorOnboardingRoute - Verification check:', {
-    verification_status: profile.verification_status,
-    is_verified: profile.is_verified,
-    isVerified: isVerified
-  });
-  
   // If vendor is already verified, redirect to dashboard immediately
   if (isVerified) {
-    console.log('VendorOnboardingRoute - Verified vendor detected, redirecting to /vendors');
     return <Navigate to="/vendors" replace />;
   }
 
@@ -93,6 +86,15 @@ export default function AppRoutes() {
       <Route 
         path="/admin" 
         element={<Admin />} 
+      />
+      
+      <Route 
+        path="/profile" 
+        element={
+          <ProtectedRoute>
+            <Profile />
+          </ProtectedRoute>
+        } 
       />
       
       <Route path="*" element={<Navigate to="/" replace />} />

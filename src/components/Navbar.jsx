@@ -205,6 +205,21 @@ function Navbar() {
               >
                 ℹ️ About
               </Link>
+              
+              <Link 
+                to="/profile" 
+                style={{
+                  color: location.pathname === '/profile' ? 'var(--accent-green)' : 'var(--text-secondary)',
+                  textDecoration: 'none',
+                  fontWeight: location.pathname === '/profile' ? '600' : '400',
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  background: location.pathname === '/profile' ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                👤 Profile
+              </Link>
             </div>
 
             {/* Notifications - Show for all logged in users */}

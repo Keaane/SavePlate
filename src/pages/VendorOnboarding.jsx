@@ -33,15 +33,8 @@ export default function VendorOnboarding() {
                        profile.verification_status != null &&
                        profile.verification_status !== undefined);
     
-    console.log('VendorOnboarding - Profile check:', {
-      verification_status: profile.verification_status,
-      is_verified: profile.is_verified,
-      isVerified: isVerified
-    });
-    
     // If vendor is already verified, redirect to dashboard immediately
     if (isVerified) {
-      console.log('Vendor is verified, redirecting to /vendors');
       navigate('/vendors', { replace: true });
       return;
     }
