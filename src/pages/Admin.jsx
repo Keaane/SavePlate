@@ -50,7 +50,6 @@ function Admin() {
     }
   };
 
-
   const handleVerify = async (vendorId) => {
     if (!window.confirm('✅ Approve this vendor? They will be able to add food items.')) return;
     
@@ -138,7 +137,6 @@ function Admin() {
 
       if (error) throw error;
       
-    
       await sendSMS(vendorId, 'listing_deleted');
       alert('✅ Listing deleted!');
       fetchData();

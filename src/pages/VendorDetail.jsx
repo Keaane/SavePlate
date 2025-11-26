@@ -216,7 +216,6 @@ export default function VendorDetail() {
           ← Back
         </button>
       </div>
-
       {/* Hero */}
       <div style={{
         background: 'linear-gradient(135deg, rgba(16,185,129,0.2), transparent)',
@@ -557,7 +556,6 @@ export default function VendorDetail() {
                   {' '}for assistance. We'll help resolve the issue!
                 </p>
               </div>
-
               <div style={{ 
                 display: 'flex', 
                 alignItems: 'center', 

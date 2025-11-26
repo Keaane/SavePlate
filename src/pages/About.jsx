@@ -77,7 +77,6 @@ function About() {
           ← Back
         </button>
       </div>
-
       {/* Hero Section */}
       <section style={{
         background: 'linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%)',

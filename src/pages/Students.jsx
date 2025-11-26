@@ -196,7 +196,6 @@ export default function Students() {
           </button>
         </div>
       </div>
-
       {/* Hero */}
       <section style={{
         padding: '4rem 1rem 2rem',
@@ -295,8 +294,11 @@ export default function Students() {
                   borderRadius: '14px',
                   padding: '1.2rem',
                   marginBottom: '1rem',
+                  cursor: 'pointer',
                   transition: 'all 0.2s',
                 }}
+                onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+                onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
               >
                 <div style={{ 
                   display: 'flex', 
@@ -412,6 +414,38 @@ export default function Students() {
                     }}
                   >
                     👤 View Profile
+=======
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <span style={{
+                    background: 'rgba(16,185,129,0.2)',
+                    color: '#10b981',
+                    padding: '4px 10px',
+                    borderRadius: '20px',
+                    fontSize: '0.75rem',
+                    fontWeight: '600'
+                  }}>
+                    ✅ Verified
+                  </span>
+                  <button
+                    onClick={e => {
+                      e.stopPropagation();
+                      alert(`📞 Call ${vendor.phone} to order from ${vendor.full_name}`);
+                    }}
+                    style={{
+                      padding: '6px 14px',
+                      background: 'rgba(16,185,129,0.3)',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: 'white',
+                      fontSize: '0.85rem',
+                      fontWeight: '500',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Contact
+>>>>>>> 5891512417ff14c8e706f03ec9f4be8a3bff6a6d
                   </button>
                 </div>
               </div>

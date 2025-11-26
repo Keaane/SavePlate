@@ -31,16 +31,6 @@ function appReducer(state, action) {
   }
 }
 
-// Helper function to add timeout to promises
-const withTimeout = (promise, timeoutMs, errorMessage) => {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error(errorMessage)), timeoutMs)
-    )
-  ]);
-};
-
 export function AppProvider({ children }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
   const navigate = useNavigate();
@@ -313,5 +303,3 @@ export function useApp() {
   }
   return context;
 }
-
-// Export for use in other components

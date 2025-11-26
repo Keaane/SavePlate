@@ -20,6 +20,7 @@ export default function FoodCard({ food, hideContactButton = false }) {
       if (diff <= 0) {
         setTimeLeft('Expired');
         setHoursLeft(0);
+        return;
       } else {
         const hours = Math.floor(diff / (1000 * 60 * 60));
         const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
