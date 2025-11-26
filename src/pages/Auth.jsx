@@ -45,6 +45,8 @@ function Auth() {
       if (!formData.fullName.trim()) throw new Error('Full name required');
       if (formData.password.length < 6) throw new Error('Password ≥ 6 chars');
 
+      console.log('Starting signup...');
+      
       const { data, error } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -56,9 +58,18 @@ function Auth() {
         }
       });
 
+      console.log('Signup response:', { data, error });
+
       if (error) throw error;
+      
+      // Check if user was created
+      if (!data?.user) {
+        throw new Error('Signup failed - no user returned. Check email confirmation settings.');
+      }
 
       // Update or create profile (trigger may have already created it)
+      console.log('Creating profile for user:', data.user.id);
+      
       const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
@@ -85,6 +96,7 @@ function Auth() {
         }
       }, 2000);
     } catch (err) {
+      console.error('Signup error:', err);
       setError(err.message || 'Signup failed');
     } finally {
       setLoading(false);
