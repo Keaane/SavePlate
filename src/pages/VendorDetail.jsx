@@ -40,13 +40,11 @@ export default function VendorDetail() {
           throw new Error('Vendor not found');
         }
 
-        // Fetch food items
+        // Fetch ALL food items (including past items for gallery)
         const { data: foodData, error: foodError } = await supabase
           .from('food_items')
           .select('*')
           .eq('vendor_id', id)
-          .eq('is_active', true)
-          .gt('quantity', 0)
           .order('created_at', { ascending: false });
 
         if (foodError) throw foodError;
@@ -615,6 +613,81 @@ export default function VendorDetail() {
 
         {/* Main Content */}
         <div>
+          {/* Photo Gallery - Show vendor gallery + all food item images */}
+          {(() => {
+            // Combine gallery images + food item images (including expired ones)
+            const galleryImages = vendor.gallery_images || [];
+            const foodImageUrls = foodItems
+              .filter(f => f.image)
+              .map(f => ({ url: f.image, name: f.title, expired: new Date(f.expiry_date) < new Date() }));
+            const allImages = [
+              ...galleryImages.map(url => ({ url, name: 'Gallery', expired: false })),
+              ...foodImageUrls
+            ];
+            
+            if (allImages.length === 0) return null;
+            
+            return (
+              <section style={{ marginBottom: '3rem' }}>
+                <h2 style={{ 
+                  fontSize: '1.8rem',
+                  fontWeight: '700',
+                  marginBottom: '1.5rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}>
+                  📸 Photo Gallery ({allImages.length})
+                </h2>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
+                  gap: '1rem'
+                }}>
+                  {allImages.slice(0, 12).map((img, idx) => (
+                    <div key={idx} style={{
+                      position: 'relative',
+                      aspectRatio: '1',
+                      borderRadius: '12px',
+                      overflow: 'hidden',
+                      border: '1px solid rgba(255,255,255,0.1)'
+                    }}>
+                      <img 
+                        src={img.url} 
+                        alt={img.name}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          filter: img.expired ? 'grayscale(50%)' : 'none'
+                        }}
+                      />
+                      {img.expired && (
+                        <div style={{
+                          position: 'absolute',
+                          bottom: '0.5rem',
+                          left: '0.5rem',
+                          background: 'rgba(0,0,0,0.7)',
+                          padding: '0.25rem 0.5rem',
+                          borderRadius: '6px',
+                          fontSize: '0.7rem',
+                          color: '#f97316'
+                        }}>
+                          Past item
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {allImages.length > 12 && (
+                  <p style={{ textAlign: 'center', marginTop: '1rem', color: 'rgba(255,255,255,0.6)' }}>
+                    + {allImages.length - 12} more photos
+                  </p>
+                )}
+              </section>
+            );
+          })()}
+
           {/* Food Items */}
           <section style={{ marginBottom: '3rem' }}>
             <h2 style={{ 

@@ -76,7 +76,9 @@ export default function VendorOnboarding() {
       setUploading(true);
       try {
         let idUrl = null;
-        // Try to upload ID card, but don't fail if bucket doesn't exist
+        let galleryUrls = [];
+
+        // Try to upload ID card
         if (formData.id_card) {
           try {
             const fileName = `${profile.id}/id/${Date.now()}_${formData.id_card.name}`;
@@ -90,35 +92,55 @@ export default function VendorOnboarding() {
                 .getPublicUrl(fileName);
               idUrl = urlData?.publicUrl || null;
             } else {
-              // If bucket doesn't exist, just log and continue without ID URL
-              console.warn('Storage bucket not found, continuing without ID upload:', uploadError.message);
+              console.warn('ID upload failed:', uploadError.message);
             }
           } catch (storageError) {
-            // Storage error is not critical, continue without ID URL
-            console.warn('Storage upload failed, continuing without ID:', storageError);
+            console.warn('Storage upload failed:', storageError);
           }
         }
 
-        // Build update object with only columns that exist in schema
+        // Upload gallery images
+        if (formData.gallery_images && formData.gallery_images.length > 0) {
+          for (let i = 0; i < formData.gallery_images.length; i++) {
+            try {
+              const file = formData.gallery_images[i];
+              const fileName = `${profile.id}/gallery/${Date.now()}_${i}_${file.name}`;
+              const { error: uploadError } = await supabase.storage
+                .from('food-images')
+                .upload(fileName, file);
+              
+              if (!uploadError) {
+                const { data: urlData } = supabase.storage
+                  .from('food-images')
+                  .getPublicUrl(fileName);
+                if (urlData?.publicUrl) {
+                  galleryUrls.push(urlData.publicUrl);
+                }
+              }
+            } catch (err) {
+              console.warn('Gallery image upload failed:', err);
+            }
+          }
+        }
+
+        // Build update object
         const specialtiesText = formData.specialties ? `\n\nSpecialties: ${formData.specialties}` : '';
         const updateData = {
           business_name: formData.business_name,
           business_type: formData.business_type,
           location: formData.location,
           phone: formData.phone,
-          // whatsapp column doesn't exist in schema - storing in description
           description: (formData.description || 'Local vendor fighting food waste') + 
                       `\nWhatsApp: ${formData.whatsapp || formData.phone}` + 
                       specialtiesText,
           verification_status: 'verified',
-          is_verified: true  // Also set is_verified to match admin verification
+          is_verified: true
         };
 
-        // Only add id_card_url if we have a URL and the column exists (optional)
-        // For now, we'll skip it since the column doesn't exist in the schema
-        // if (idUrl) {
-        //   updateData.id_card_url = idUrl;
-        // }
+        // Add gallery URLs if we have any (stored as JSON array in description or separate field)
+        if (galleryUrls.length > 0) {
+          updateData.gallery_images = galleryUrls;
+        }
 
         const { error: updateError } = await supabase
           .from('profiles')
