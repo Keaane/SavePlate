@@ -483,12 +483,6 @@ export default function VendorOnboarding() {
                   lineHeight: 1.5
                 }}>
                   📸 Upload photos of your past food items to showcase quality and attract more customers!
-=======
-                <h3 style={{ margin: '0 0 0.5rem', color: '#d97706' }}>🛡️ New Vendor Protection</h3>
-                <p style={{ margin: 0, fontSize: '0.9rem' }}>
-                  For your first 3 orders, SavePlate Rwanda acts as a mediator. 
-                  If a student is unsatisfied, contact us for a full refund.
->>>>>>> 5891512417ff14c8e706f03ec9f4be8a3bff6a6d
                 </p>
               </div>
             </>

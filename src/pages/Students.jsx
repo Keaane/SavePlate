@@ -546,108 +546,74 @@ export default function Students() {
                     👤 View Profile
                   </button>
                 </div>
-              ))}
-            </div>
-
-            {/* Favorites Section */}
-            {favorites.length > 0 && (
-              <>
-                <h2 style={{ 
-                  fontSize: '1.4rem',
-                  marginTop: '2rem',
-                  marginBottom: '1.5rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem'
-                }}>
-                  ⭐ Favorite Vendors ({favorites.length})
-                </h2>
-                <div style={{ 
-                  maxHeight: '400px',
-                  overflowY: 'auto',
-                  paddingRight: '10px'
-                }}>
-                  {vendors
-                    .filter(v => favorites.includes(v.id))
-                    .map(vendor => (
-                      <div 
-                        key={vendor.id}
-                        style={{
-                          background: 'rgba(245,158,11,0.1)',
-                          border: '1px solid rgba(245,158,11,0.3)',
-                          borderRadius: '14px',
-                          padding: '1rem',
-                          marginBottom: '1rem',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s',
-                        }}
-                        onClick={() => {
-                          setSelectedVendor(selectedVendor?.id === vendor.id ? null : vendor);
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
-                        onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
-                      >
-                        <h3 style={{ 
-                          margin: '0 0 0.5rem', 
-                          fontSize: '1rem',
-                          fontWeight: '600'
-                        }}>
-                          {vendor.business_name || vendor.full_name}
-                        </h3>
-                        <p style={{ 
-                          margin: 0, 
-                          fontSize: '0.85rem',
-                          color: 'rgba(255,255,255,0.6)'
-                        }}>
-                          📍 {vendor.location}
-                        </p>
-                        <button
-                          onClick={e => {
-                            e.stopPropagation();
-                            navigate(`/vendors/${vendor.id}`);
-                          }}
-                          style={{
-                            marginTop: '0.75rem',
-                            width: '100%',
-                            padding: '8px',
-                            background: 'rgba(245,158,11,0.2)',
-                            border: '1px solid rgba(245,158,11,0.4)',
-                            borderRadius: '8px',
-                            color: '#f59e0b',
-                            fontSize: '0.85rem',
-                            fontWeight: '600',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          View Profile
-                        </button>
-                      </div>
-                    ))}
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Main Content: Food Items */}
-                    style={{
-                      padding: '6px 14px',
-                      background: 'rgba(16,185,129,0.3)',
-                      border: 'none',
-                      borderRadius: '8px',
-                      color: 'white',
-                      fontSize: '0.85rem',
-                      fontWeight: '500',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Contact
->>>>>>> 5891512417ff14c8e706f03ec9f4be8a3bff6a6d
-                  </button>
-                </div>
               </div>
             ))}
           </div>
+
+          {/* Favorites Section */}
+          {favorites.length > 0 && (
+            <>
+              <h2 style={{ 
+                fontSize: '1.4rem',
+                marginTop: '2rem',
+                marginBottom: '1.5rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}>
+                Favorite Vendors ({favorites.length})
+              </h2>
+              <div style={{ 
+                maxHeight: '400px',
+                overflowY: 'auto',
+                paddingRight: '10px'
+              }}>
+                {vendors
+                  .filter(v => favorites.includes(v.id))
+                  .map(vendor => (
+                    <div 
+                      key={vendor.id}
+                      style={{
+                        background: 'rgba(245,158,11,0.1)',
+                        border: '1px solid rgba(245,158,11,0.3)',
+                        borderRadius: '14px',
+                        padding: '1rem',
+                        marginBottom: '1rem',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                      }}
+                      onClick={() => setSelectedVendor(selectedVendor?.id === vendor.id ? null : vendor)}
+                      onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+                      onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
+                    >
+                      <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem', fontWeight: '600' }}>
+                        {vendor.business_name || vendor.full_name}
+                      </h3>
+                      <p style={{ margin: 0, fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)' }}>
+                        {vendor.location}
+                      </p>
+                      <button
+                        onClick={e => { e.stopPropagation(); navigate(`/vendors/${vendor.id}`); }}
+                        style={{
+                          marginTop: '0.75rem',
+                          width: '100%',
+                          padding: '8px',
+                          background: 'rgba(245,158,11,0.2)',
+                          border: '1px solid rgba(245,158,11,0.4)',
+                          borderRadius: '8px',
+                          color: '#f59e0b',
+                          fontSize: '0.85rem',
+                          fontWeight: '600',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        View Profile
+                      </button>
+                    </div>
+                  ))}
+              </div>
+            </>
+          )}
         </div>
 
         {/* Main: Food Grid */}
