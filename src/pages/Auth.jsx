@@ -58,17 +58,22 @@ function Auth() {
 
       if (error) throw error;
 
-      // Create profile
-      await supabase
+      // Update or create profile (trigger may have already created it)
+      const { error: profileError } = await supabase
         .from('profiles')
-        .insert({
+        .upsert({
           id: data.user.id,
           role,
           full_name: formData.fullName.trim(),
           phone: formData.phone || null,
           location: formData.location || 'Kigali',
           verification_status: 'pending'
-        });
+        }, { onConflict: 'id' });
+
+      if (profileError) {
+        console.error('Profile error:', profileError);
+        // Continue anyway - the trigger may have created the profile
+      }
 
       setSuccess('✅ Account created!');
       // Redirect vendors to onboarding, students to dashboard
