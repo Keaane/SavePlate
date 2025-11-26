@@ -494,9 +494,29 @@ export default function VendorOnboarding() {
                   }}
                 />
                 {formData.gallery_images.length > 0 && (
-                  <p style={{ color: '#10b981', fontSize: '0.9rem', marginBottom: '1rem' }}>
-                    ✅ {formData.gallery_images.length} image(s) selected
-                  </p>
+                  <div style={{ marginBottom: '1rem' }}>
+                    <p style={{ color: '#10b981', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
+                      {formData.gallery_images.length} image(s) selected:
+                    </p>
+                    <div style={{ 
+                      display: 'flex', 
+                      flexWrap: 'wrap', 
+                      gap: '0.5rem',
+                      marginBottom: '0.5rem'
+                    }}>
+                      {formData.gallery_images.map((file, idx) => (
+                        <span key={idx} style={{
+                          background: 'rgba(16,185,129,0.2)',
+                          color: '#10b981',
+                          padding: '4px 8px',
+                          borderRadius: '6px',
+                          fontSize: '0.8rem'
+                        }}>
+                          {file.name.length > 20 ? file.name.substring(0, 17) + '...' : file.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 )}
                 <p style={{ 
                   margin: '0.75rem 0 0', 

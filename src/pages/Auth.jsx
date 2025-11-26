@@ -27,7 +27,22 @@ function Auth() {
       setFormData(prev => ({ ...prev, email }));
       setStep('signup');
     }
-    if (window.location.search) {
+    
+    // Handle OAuth callback - check for error or access_token in hash
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const errorDescription = hashParams.get('error_description');
+    if (errorDescription) {
+      setError('Login failed: ' + errorDescription);
+    }
+    
+    // Check for successful OAuth - session will be handled by AppContext
+    const accessToken = hashParams.get('access_token');
+    if (accessToken) {
+      setLoading(true);
+      setSuccess('Logging you in...');
+    }
+    
+    if (window.location.search || window.location.hash) {
       window.history.replaceState({}, '', window.location.pathname);
     }
   }, []);
@@ -129,13 +144,22 @@ function Auth() {
     setLoading(true);
     setError('');
     try {
+      // Use the current origin for redirect, this works for both localhost and production
+      const redirectUrl = window.location.origin + '/auth';
+      console.log('OAuth redirect URL:', redirectUrl);
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
-        options: { redirectTo: window.location.origin + '/auth' }
+        options: { 
+          redirectTo: redirectUrl,
+          skipBrowserRedirect: false
+        }
       });
       if (error) throw error;
+      // Note: Loading state remains true as user will be redirected
     } catch (err) {
-      setError('Google login failed');
+      console.error('OAuth error:', err);
+      setError('Google login failed: ' + (err.message || 'Please check your Supabase OAuth settings. Make sure the redirect URL is configured in Supabase Dashboard > Authentication > URL Configuration.'));
       setLoading(false);
     }
   };
@@ -143,10 +167,12 @@ function Auth() {
   return (
     <div style={{ minHeight: '100vh', background: '#0f172a', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
       <div style={{ background: 'rgba(15,23,42,0.7)', borderRadius: '20px', maxWidth: '500px', width: '100%', overflow: 'hidden' }}>
-        <div style={{ background: 'linear-gradient(135deg, #0c4a6e, #075985)', padding: '2rem', textAlign: 'center' }}>
-          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🍽️</div>
-          <h1 style={{ margin: 0, fontSize: '2rem', fontWeight: '800', background: 'linear-gradient(135deg, #fff, #93c5fd)', backgroundClip: 'text', color: 'transparent' }}>SavePlate Rwanda</h1>
-          <p style={{ margin: '0.5rem 0 0', color: 'rgba(255,255,255,0.8)' }}>Reduce food waste, support local vendors</p>
+        <div style={{ background: 'linear-gradient(135deg, #064e3b, #065f46)', padding: '2rem', textAlign: 'center' }}>
+          <div style={{ fontSize: '3rem', marginBottom: '0.75rem' }}>🍽️</div>
+          <h1 style={{ margin: 0, fontSize: '2rem', fontWeight: '800', background: 'linear-gradient(135deg, #fff, #34d399)', backgroundClip: 'text', WebkitBackgroundClip: 'text', color: 'transparent' }}>SavePlate</h1>
+          <p style={{ margin: '0.75rem 0 0', color: '#6ee7b7', fontStyle: 'italic', fontSize: '1.05rem' }}>
+            Eat like royalty. Pay like a student.
+          </p>
         </div>
 
         <div style={{ padding: '2rem' }}>
@@ -155,20 +181,95 @@ function Auth() {
 
           {step === 'welcome' && (
             <div style={{ textAlign: 'center' }}>
-              <h2 style={{ marginBottom: '1.5rem' }}>Welcome to SavePlate</h2>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '2rem' }}>
-                <div onClick={() => { setRole('student'); setStep('signup'); }} style={{ background: role === 'student' ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.05)', border: `2px solid ${role === 'student' ? '#3b82f6' : 'transparent'}`, borderRadius: '16px', padding: '1.5rem', cursor: 'pointer', textAlign: 'center' }}>
+              <h2 style={{ marginBottom: '0.5rem', fontSize: '1.5rem' }}>Join SavePlate</h2>
+              <p style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '1.5rem', fontSize: '0.95rem' }}>
+                Create your account - it takes 30 seconds
+              </p>
+              
+              <p style={{ 
+                color: 'rgba(255,255,255,0.8)', 
+                marginBottom: '1rem',
+                fontSize: '0.9rem',
+                fontWeight: '500'
+              }}>
+                I want to...
+              </p>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+                <div 
+                  onClick={() => { setRole('student'); setStep('signup'); }} 
+                  style={{ 
+                    background: 'rgba(59,130,246,0.1)', 
+                    border: '2px solid rgba(59,130,246,0.3)', 
+                    borderRadius: '16px', 
+                    padding: '1.5rem', 
+                    cursor: 'pointer', 
+                    textAlign: 'center',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = 'rgba(59,130,246,0.2)';
+                    e.currentTarget.style.borderColor = '#3b82f6';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = 'rgba(59,130,246,0.1)';
+                    e.currentTarget.style.borderColor = 'rgba(59,130,246,0.3)';
+                  }}
+                >
                   <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>🎓</div>
-                  <h3>Student</h3>
-                  <p>Buy surplus food</p>
+                  <h3 style={{ margin: '0 0 0.25rem', color: '#3b82f6' }}>Buy Food</h3>
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)' }}>I'm a student looking for deals</p>
                 </div>
-                <div onClick={() => { setRole('vendor'); setStep('signup'); }} style={{ background: role === 'vendor' ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.05)', border: `2px solid ${role === 'vendor' ? '#10b981' : 'transparent'}`, borderRadius: '16px', padding: '1.5rem', cursor: 'pointer', textAlign: 'center' }}>
+                <div 
+                  onClick={() => { setRole('vendor'); setStep('signup'); }} 
+                  style={{ 
+                    background: 'rgba(16,185,129,0.1)', 
+                    border: '2px solid rgba(16,185,129,0.3)', 
+                    borderRadius: '16px', 
+                    padding: '1.5rem', 
+                    cursor: 'pointer', 
+                    textAlign: 'center',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = 'rgba(16,185,129,0.2)';
+                    e.currentTarget.style.borderColor = '#10b981';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = 'rgba(16,185,129,0.1)';
+                    e.currentTarget.style.borderColor = 'rgba(16,185,129,0.3)';
+                  }}
+                >
                   <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>🏪</div>
-                  <h3>Vendor</h3>
-                  <p>List surplus food</p>
+                  <h3 style={{ margin: '0 0 0.25rem', color: '#10b981' }}>Sell Food</h3>
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)' }}>I'm a vendor with surplus</p>
                 </div>
               </div>
-              <button onClick={() => setStep('signin')} style={{ width: '100%', padding: '12px', background: 'transparent', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '12px' }}>Sign In</button>
+              
+              <div style={{ 
+                borderTop: '1px solid rgba(255,255,255,0.1)', 
+                paddingTop: '1.5rem',
+                marginTop: '0.5rem'
+              }}>
+                <p style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '0.75rem', fontSize: '0.9rem' }}>
+                  Already have an account?
+                </p>
+                <button 
+                  onClick={() => setStep('signin')} 
+                  style={{ 
+                    width: '100%', 
+                    padding: '12px', 
+                    background: 'linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05))', 
+                    color: '#fff', 
+                    border: '1px solid rgba(255,255,255,0.2)', 
+                    borderRadius: '12px',
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Sign In Instead
+                </button>
+              </div>
             </div>
           )}
 
@@ -214,8 +315,25 @@ function Auth() {
             </div>
           )}
 
-          <div style={{ marginTop: '2rem', padding: '1rem', background: 'rgba(16,185,129,0.1)', borderRadius: '12px', textAlign: 'center' }}>
-            <p style={{ margin: 0, color: '#34d399' }}>🌟 New users get Frw 200 bonus on first order!</p>
+          <div style={{ marginTop: '2rem', padding: '1rem', background: 'rgba(16,185,129,0.08)', borderRadius: '12px', textAlign: 'center' }}>
+            <p style={{ margin: 0, color: 'rgba(255,255,255,0.7)', fontSize: '0.9rem' }}>
+              Surplus food at 50-70% off. Fresh. Local. Verified.
+            </p>
+            <button 
+              onClick={() => navigate('/about')}
+              style={{
+                marginTop: '0.75rem',
+                padding: '8px 16px',
+                background: 'transparent',
+                border: '1px solid rgba(16,185,129,0.3)',
+                borderRadius: '20px',
+                color: '#34d399',
+                fontSize: '0.85rem',
+                cursor: 'pointer'
+              }}
+            >
+              Learn how it works
+            </button>
           </div>
         </div>
       </div>

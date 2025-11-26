@@ -185,7 +185,7 @@ export default function Students() {
         borderBottom: '1px solid rgba(255,255,255,0.1)'
       }}>
         <div style={{ fontSize: '1.5rem', fontWeight: '700' }}>
-          🇷🇼 SavePlate
+          SavePlate
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           {profile && (
@@ -196,6 +196,24 @@ export default function Students() {
               {profile.full_name || user?.email}
             </span>
           )}
+          <button
+            onClick={() => navigate('/profile')}
+            style={{
+              padding: '10px 20px',
+              background: 'rgba(59, 130, 246, 0.1)',
+              border: '1px solid rgba(59, 130, 246, 0.3)',
+              borderRadius: '8px',
+              color: '#3b82f6',
+              cursor: 'pointer',
+              fontSize: '0.9rem',
+              fontWeight: '600',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            My Profile
+          </button>
           <button
             onClick={async () => {
               try {
@@ -229,7 +247,7 @@ export default function Students() {
               e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)';
             }}
           >
-            🚪 Logout
+            Logout
           </button>
         </div>
       </div>

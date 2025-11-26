@@ -75,24 +75,32 @@ export default function Home() {
         }}>
           <h1 style={{ 
             fontSize: '3.5rem', 
-            marginBottom: '1rem',
+            marginBottom: '0.5rem',
             background: 'linear-gradient(135deg, #fff, #10b981)',
             backgroundClip: 'text',
             WebkitBackgroundClip: 'text',
             color: 'transparent',
             fontWeight: '800'
           }}>
-            SavePlate Rwanda
+            SavePlate
           </h1>
           <p style={{ 
-            fontSize: '1.3rem', 
+            fontSize: '1.2rem', 
+            color: '#6ee7b7',
+            fontStyle: 'italic',
+            marginBottom: '1rem'
+          }}>
+            Eat like royalty. Pay like a student.
+          </p>
+          <p style={{ 
+            fontSize: '1.1rem', 
             maxWidth: '600px', 
             margin: '0 auto 2rem',
-            color: 'rgba(255,255,255,0.8)'
+            color: 'rgba(255,255,255,0.7)'
           }}>
             {user 
               ? `Welcome back, ${profile?.full_name || 'friend'}!`
-              : 'Reducing food waste, feeding communities across Rwanda.'}
+              : 'Surplus food from local vendors at 50-70% off. Fresh, local, verified.'}
           </p>
           
           <div style={{ 
@@ -147,8 +155,25 @@ export default function Home() {
                 boxShadow: '0 4px 20px rgba(16,185,129,0.3)'
               }}
             >
-              {user ? 'Go to Dashboard 📊' : 'Get Started 🚀'}
+              {user ? 'Go to Dashboard' : 'Get Started'}
             </button>
+            {!user && (
+              <button 
+                onClick={() => navigate('/about')}
+                style={{
+                  padding: '14px 28px',
+                  background: 'rgba(255,255,255,0.05)',
+                  color: 'rgba(255,255,255,0.9)',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  borderRadius: '12px',
+                  fontWeight: '600',
+                  fontSize: '1.1rem',
+                  cursor: 'pointer'
+                }}
+              >
+                How It Works
+              </button>
+            )}
           </div>
         </div>
       </section>

@@ -3,6 +3,7 @@ import { useApp } from './context/AppContext';
 
 import Auth from './pages/Auth';
 import Home from './pages/Home';
+import About from './pages/About';
 import Students from './pages/Students';
 import Vendors from './pages/Vendors';
 import VendorDetail from './pages/VendorDetail';
@@ -50,6 +51,7 @@ export default function AppRoutes() {
     <Routes>
       <Route path="/auth" element={<Auth />} />
       <Route path="/" element={<Home />} />
+      <Route path="/about" element={<About />} />
       
       <Route 
         path="/students" 

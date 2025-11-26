@@ -613,6 +613,91 @@ export default function VendorDetail() {
 
         {/* Main Content */}
         <div>
+          {/* About Section */}
+          <section style={{
+            marginBottom: '3rem',
+            background: 'rgba(15,23,42,0.6)',
+            borderRadius: '20px',
+            border: '1px solid rgba(255,255,255,0.08)',
+            padding: '2rem'
+          }}>
+            <h2 style={{ 
+              fontSize: '1.8rem',
+              fontWeight: '700',
+              marginBottom: '1.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}>
+              About {vendor.business_name || vendor.full_name}
+            </h2>
+            
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: '1.5rem',
+              marginBottom: '1.5rem'
+            }}>
+              <div>
+                <h4 style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
+                  Business Type
+                </h4>
+                <p style={{ margin: 0, fontSize: '1.1rem', textTransform: 'capitalize' }}>
+                  {vendor.business_type || 'Restaurant'}
+                </p>
+              </div>
+              
+              <div>
+                <h4 style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
+                  Location
+                </h4>
+                <p style={{ margin: 0, fontSize: '1.1rem' }}>
+                  {vendor.location || 'Kigali, Rwanda'}
+                </p>
+              </div>
+              
+              <div>
+                <h4 style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
+                  Contact
+                </h4>
+                <p style={{ margin: 0, fontSize: '1.1rem' }}>
+                  {vendor.phone || 'Contact via app'}
+                </p>
+              </div>
+            </div>
+            
+            <div>
+              <h4 style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
+                Description
+              </h4>
+              <p style={{ 
+                margin: 0, 
+                fontSize: '1rem', 
+                lineHeight: 1.7,
+                color: 'rgba(255,255,255,0.9)',
+                whiteSpace: 'pre-line'
+              }}>
+                {vendor.description || 'Local vendor fighting food waste in Rwanda. We offer fresh surplus food at discounted prices to help students save money while reducing waste.'}
+              </p>
+            </div>
+            
+            {/* Specialties if in description */}
+            {vendor.description?.includes('Specialties:') && (
+              <div style={{ marginTop: '1.5rem' }}>
+                <h4 style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
+                  What We Offer
+                </h4>
+                <p style={{ 
+                  margin: 0, 
+                  fontSize: '1rem',
+                  color: '#10b981'
+                }}>
+                  {vendor.description.split('Specialties:')[1]?.trim() || 'Fresh surplus food daily'}
+                </p>
+              </div>
+            )}
+          </section>
+
           {/* Photo Gallery - Show vendor gallery + all food item images */}
           {(() => {
             // Combine gallery images + food item images (including expired ones)

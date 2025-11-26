@@ -76,12 +76,15 @@ export default function VendorForm({ editingItem = null, onCancel, onSuccess }) 
         } catch (storageError) {
           console.error('Storage upload error:', storageError);
           // If storage fails, continue without image (optional feature)
-          alert('⚠️ Image upload failed: ' + (storageError.message || 'Please check storage setup. Food item will be saved without image.'));
+          // Don't show alert here - we'll include the warning in the final success message
           imageUrl = formData.imagePreview || null; // Use preview if available
         } finally {
           setUploading(false);
         }
       }
+
+      // Track if image upload failed for final message
+      const imageUploadFailed = formData.image && formData.image instanceof File && !imageUrl;
 
       const foodData = {
         name: formData.name.trim(),
@@ -110,7 +113,12 @@ export default function VendorForm({ editingItem = null, onCancel, onSuccess }) 
 
       if (error) throw error;
 
-      alert(editingItem ? '✅ Food item updated!' : '✅ Food item added!');
+      // Show appropriate message based on image upload status
+      if (imageUploadFailed) {
+        alert((editingItem ? 'Food item updated' : 'Food item added') + ' (Note: Image upload failed - the storage bucket may not be set up. Your item was saved without the image.)');
+      } else {
+        alert(editingItem ? 'Food item updated!' : 'Food item added!');
+      }
       onSuccess();
     } catch (err) {
       alert('❌ Error: ' + (err.message || 'Failed to save. Try again.'));

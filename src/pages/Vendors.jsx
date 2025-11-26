@@ -132,17 +132,24 @@ export default function Vendors() {
     revenue: vendorItems.reduce((sum, item) => sum + (item.price * 10), 0) // Estimate: 10 orders
   };
 
-  // Badge styles
-  const getBadgeStyle = (status) => {
-    switch (status) {
-      case 'new': return { bg: 'rgba(245, 158, 11, 0.15)', color: '#d97706', text: '🆕 New Vendor' };
-      case 'active': return { bg: 'rgba(16, 185, 129, 0.15)', color: '#059669', text: '🌱 Active Vendor' };
-      case 'trusted': return { bg: 'rgba(59, 130, 246, 0.15)', color: '#1d4ed8', text: '✅ Trusted Vendor' };
-      default: return { bg: 'rgba(107, 114, 128, 0.15)', color: '#6b7280', text: '⏳ Pending' };
+  // Badge styles based on verification status
+  const getBadgeStyle = () => {
+    const isVerified = profile?.verification_status === 'verified' || profile?.is_verified === true;
+    
+    if (!isVerified) {
+      return { bg: 'rgba(245, 158, 11, 0.15)', color: '#d97706', text: 'Pending Verification' };
+    }
+    
+    // Check badge level for verified vendors
+    switch (profile?.verification_badge) {
+      case 'trusted': return { bg: 'rgba(59, 130, 246, 0.15)', color: '#1d4ed8', text: 'Trusted Vendor' };
+      case 'active': return { bg: 'rgba(16, 185, 129, 0.15)', color: '#059669', text: 'Active Vendor' };
+      default: return { bg: 'rgba(16, 185, 129, 0.15)', color: '#059669', text: 'Verified Vendor' };
     }
   };
 
-  const badge = getBadgeStyle(profile?.verification_badge || 'new');
+  const badge = getBadgeStyle();
+  const isVerified = profile?.verification_status === 'verified' || profile?.is_verified === true;
 
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '1rem' }}>
@@ -193,6 +200,44 @@ export default function Vendors() {
           }}>
             {badge.text}
           </span>
+          
+          <button
+            onClick={() => navigate('/profile')}
+            style={{
+              padding: '10px 20px',
+              background: 'rgba(59, 130, 246, 0.1)',
+              border: '1px solid rgba(59, 130, 246, 0.3)',
+              borderRadius: '8px',
+              color: '#3b82f6',
+              cursor: 'pointer',
+              fontSize: '0.95rem',
+              fontWeight: '600',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            My Profile
+          </button>
+          
+          <button
+            onClick={() => navigate(`/vendors/${profile?.id}`)}
+            style={{
+              padding: '10px 20px',
+              background: 'rgba(16, 185, 129, 0.1)',
+              border: '1px solid rgba(16, 185, 129, 0.3)',
+              borderRadius: '8px',
+              color: '#10b981',
+              cursor: 'pointer',
+              fontSize: '0.95rem',
+              fontWeight: '600',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            View Public Profile
+          </button>
           
           <button
             onClick={(e) => {
@@ -255,8 +300,8 @@ export default function Vendors() {
         </div>
       </div>
 
-      {/* Verification Banner (For New Vendors) */}
-      {profile?.verification_badge === 'new' && (
+      {/* Verification Banner (For New/Unverified Vendors) */}
+      {profile?.verification_status !== 'verified' && !profile?.is_verified && (
         <div style={{
           background: 'linear-gradient(135deg, rgba(245,158,11,0.1), rgba(250,204,21,0.05))',
           border: '1px solid rgba(250,204,21,0.3)',
@@ -389,7 +434,7 @@ export default function Vendors() {
         }}>
           <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🏪</div>
           <h3 style={{ color: '#94a8b8', marginBottom: '1rem' }}>
-            {profile?.verification_badge === 'new' 
+            {!isVerified 
               ? 'Get Verified First!' 
               : 'No food items listed'}
           </h3>
@@ -399,19 +444,23 @@ export default function Vendors() {
             maxWidth: '600px',
             margin: '0 auto 2rem'
           }}>
-            {profile?.verification_badge === 'new' 
+            {!isVerified 
               ? 'Complete verification to start listing surplus food and earn extra income.' 
               : 'Add your first surplus food item to help students and reduce waste!'}
           </p>
           <button
             onClick={(e) => {
               e.preventDefault();
-              setEditingItem(null);
-              setShowForm(true);
+              if (!isVerified) {
+                navigate('/vendor-onboarding');
+              } else {
+                setEditingItem(null);
+                setShowForm(true);
+              }
             }}
             style={{
               padding: '14px 28px',
-              background: profile?.verification_badge === 'new' 
+              background: !isVerified 
                 ? 'linear-gradient(135deg, rgba(245,158,11,0.9), rgba(219,98,12,0.9))'
                 : 'linear-gradient(135deg, rgba(16,185,129,0.9), rgba(5,150,105,0.9))',
               color: 'white',
@@ -425,7 +474,7 @@ export default function Vendors() {
               gap: '8px'
             }}
           >
-            {profile?.verification_badge === 'new' ? '✅ Verify & List' : '➕ Add Food Item'}
+            {!isVerified ? 'Verify Now' : 'Add Food Item'}
           </button>
         </div>
       ) : (

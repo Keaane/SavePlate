@@ -1,340 +1,452 @@
-import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
 
-function About() {
+/**
+ * About page explaining SavePlate's mission and purpose
+ * Designed to be fun, engaging, and informative
+ */
+export default function About() {
   const navigate = useNavigate();
-  const [stats, setStats] = useState({
-    foodItems: 0,
-    mealsProvided: 0,
-    vendorsPartnered: 0,
-    loading: true
-  });
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const [foodRes, vendorRes] = await Promise.all([
-          supabase
-            .from('food_items')
-            .select('*', { count: 'exact', head: true })
-            .eq('is_active', true)
-            .gt('quantity', 0),
-          supabase
-            .from('profiles')
-            .select('*', { count: 'exact', head: true })
-            .eq('role', 'vendor')
-            .in('verification_status', ['verified', 'active'])
-        ]);
-
-        const foodItemsCount = foodRes.count || 0;
-        const vendorsCount = vendorRes.count || 0;
-        // Estimate meals provided: assume each food item represents multiple meals
-        const mealsProvided = foodItemsCount * 5; // Average 5 meals per listing
-
-        setStats({
-          foodItems: foodItemsCount,
-          mealsProvided,
-          vendorsPartnered: vendorsCount,
-          loading: false
-        });
-      } catch (error) {
-        console.error('Error fetching stats:', error);
-        setStats(prev => ({ ...prev, loading: false }));
-      }
-    };
-
-    fetchStats();
-  }, []);
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)' }}>
-      {/* Back Button */}
-      <div style={{ padding: '1rem 2rem' }}>
-        <button
-          onClick={() => navigate(-1)}
-          style={{
-            padding: '10px 20px',
-            background: 'rgba(255,255,255,0.1)',
-            color: 'var(--text-primary)',
-            border: '1px solid rgba(255,255,255,0.2)',
-            borderRadius: '8px',
+    <div style={{
+      minHeight: '100vh',
+      background: 'radial-gradient(ellipse at top, #0c1929 0%, #000000 50%)',
+      color: '#fff',
+      overflow: 'hidden'
+    }}>
+      {/* Floating food elements for fun */}
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        pointerEvents: 'none',
+        overflow: 'hidden',
+        zIndex: 0
+      }}>
+        {['🍕', '🥗', '🍜', '🥐', '🍛', '🥤', '🍱', '🥪'].map((emoji, i) => (
+          <div
+            key={i}
+            style={{
+              position: 'absolute',
+              fontSize: '2rem',
+              opacity: 0.1,
+              left: `${10 + (i * 12)}%`,
+              top: `${15 + (i * 10) % 70}%`,
+              animation: `float${i % 3} ${3 + i}s ease-in-out infinite`,
+              animationDelay: `${i * 0.5}s`
+            }}
+          >
+            {emoji}
+          </div>
+        ))}
+      </div>
+
+      {/* Navigation */}
+      <nav style={{
+        padding: '1.5rem 2rem',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        position: 'relative',
+        zIndex: 10
+      }}>
+        <div 
+          onClick={() => navigate('/')}
+          style={{ 
+            fontSize: '1.5rem', 
+            fontWeight: '800',
             cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            fontSize: '0.95rem',
-            fontWeight: '500',
-            transition: 'all 0.2s ease'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.15)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
+            background: 'linear-gradient(135deg, #10b981, #34d399)',
+            backgroundClip: 'text',
+            WebkitBackgroundClip: 'text',
+            color: 'transparent'
           }}
         >
-          ← Back
+          SavePlate
+        </div>
+        <button
+          onClick={() => navigate('/auth')}
+          style={{
+            padding: '10px 24px',
+            background: 'linear-gradient(135deg, #10b981, #059669)',
+            border: 'none',
+            borderRadius: '25px',
+            color: 'white',
+            fontWeight: '600',
+            cursor: 'pointer'
+          }}
+        >
+          Get Started
         </button>
-      </div>
+      </nav>
+
       {/* Hero Section */}
       <section style={{
-        background: 'linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%)',
-        padding: '4rem 0',
         textAlign: 'center',
-        borderBottom: '1px solid var(--border-color)'
+        padding: '4rem 1rem 3rem',
+        position: 'relative',
+        zIndex: 1
       }}>
-        <div className="container">
-          <h1 style={{
-            fontSize: '3rem',
-            marginBottom: '1rem',
-            background: 'linear-gradient(135deg, var(--text-primary), var(--accent-green))',
+        <div style={{
+          fontSize: '4rem',
+          marginBottom: '1rem',
+          animation: 'bounce 2s ease-in-out infinite'
+        }}>
+          🍽️
+        </div>
+        <h1 style={{
+          fontSize: 'clamp(2.5rem, 6vw, 4rem)',
+          fontWeight: '900',
+          marginBottom: '1rem',
+          lineHeight: 1.1
+        }}>
+          <span style={{
+            background: 'linear-gradient(135deg, #fff 0%, #10b981 50%, #34d399 100%)',
             backgroundClip: 'text',
             WebkitBackgroundClip: 'text',
             color: 'transparent'
           }}>
-            About SavePlate
-          </h1>
-          <p style={{
-            color: 'var(--text-secondary)',
-            fontSize: '1.2rem',
-            maxWidth: '600px',
-            margin: '0 auto 2rem'
+            Good Food.
+          </span>
+          <br />
+          <span style={{
+            background: 'linear-gradient(135deg, #34d399 0%, #10b981 50%, #059669 100%)',
+            backgroundClip: 'text',
+            WebkitBackgroundClip: 'text',
+            color: 'transparent'
           }}>
-            Fighting food waste, feeding communities, building a sustainable future for Africa
-          </p>
-          <button 
-            className="btn btn-primary"
-            onClick={() => navigate('/auth')}
-            style={{ padding: '1rem 2rem', fontSize: '1.1rem' }}
-          >
-            Join the Movement 🚀
-          </button>
-        </div>
+            Good Price.
+          </span>
+          <br />
+          <span style={{ color: 'rgba(255,255,255,0.9)' }}>
+            Good Karma.
+          </span>
+        </h1>
+        <p style={{
+          fontSize: '1.3rem',
+          color: 'rgba(255,255,255,0.7)',
+          maxWidth: '600px',
+          margin: '0 auto 2rem',
+          lineHeight: 1.6
+        }}>
+          Where surplus food meets hungry students.
+          <br />
+          <em style={{ color: '#10b981' }}>Eat like royalty, pay like a student.</em>
+        </p>
       </section>
 
-      {/* Mission Section */}
-      <section style={{ padding: '4rem 0' }}>
-        <div className="container">
+      {/* The Problem We Solve */}
+      <section style={{
+        padding: '3rem 1rem',
+        maxWidth: '1000px',
+        margin: '0 auto'
+      }}>
+        <div style={{
+          background: 'rgba(239, 68, 68, 0.1)',
+          border: '1px solid rgba(239, 68, 68, 0.2)',
+          borderRadius: '24px',
+          padding: '2.5rem',
+          marginBottom: '2rem',
+          position: 'relative',
+          overflow: 'hidden'
+        }}>
+          <div style={{
+            position: 'absolute',
+            top: '-20px',
+            right: '-20px',
+            fontSize: '6rem',
+            opacity: 0.1
+          }}>😱</div>
+          <h2 style={{ 
+            fontSize: '1.8rem', 
+            marginBottom: '1rem',
+            color: '#fca5a5'
+          }}>
+            The Problem
+          </h2>
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-            gap: '3rem',
-            alignItems: 'center'
+            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+            gap: '1.5rem'
           }}>
-            <div>
-              <h2 style={{
-                fontSize: '2.5rem',
-                marginBottom: '1.5rem',
-                color: 'var(--text-primary)'
-              }}>
-                Our Mission 🌍
-              </h2>
-              <p style={{
-                color: 'var(--text-secondary)',
-                lineHeight: '1.8',
-                marginBottom: '1.5rem',
-                fontSize: '1.1rem'
-              }}>
-                SavePlate is on a mission to harness technology for positive impact, promoting human 
-                well-being and sustainable practices while minimizing negative consequences.
-              </p>
-              <p style={{
-                color: 'var(--text-secondary)',
-                lineHeight: '1.8',
-                fontSize: '1.1rem'
-              }}>
-                Through SavePlate, we put this mission into action by creating a solution that 
-                reduces food waste and increases access to affordable meals for students and 
-                low-income communities in Africa.
-              </p>
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+              <span style={{ fontSize: '2rem' }}>🗑️</span>
+              <div>
+                <h3 style={{ margin: '0 0 0.5rem', color: '#fff' }}>Food Goes to Waste</h3>
+                <p style={{ margin: 0, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5 }}>
+                  Restaurants throw away perfectly good food every day. It hurts the planet and their pockets.
+                </p>
+              </div>
             </div>
-            <div style={{
-              background: 'var(--bg-card)',
-              padding: '2rem',
-              borderRadius: '16px',
-              border: '1px solid var(--border-color)',
-              textAlign: 'center'
-            }}>
-              <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🍽️</div>
-              <h3 style={{ color: 'var(--text-primary)', marginBottom: '1rem' }}>
-                The Problem
-              </h3>
-              <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6' }}>
-                According to UNEP (2021), nearly <strong>37% of food in Sub-Saharan Africa is lost or wasted</strong>, 
-                while millions still go hungry every day.
-              </p>
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+              <span style={{ fontSize: '2rem' }}>💸</span>
+              <div>
+                <h3 style={{ margin: '0 0 0.5rem', color: '#fff' }}>Students Are Broke</h3>
+                <p style={{ margin: 0, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5 }}>
+                  Let's be real - that budget is tight. Choosing between lunch and lecture notes shouldn't be a thing.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* The Solution */}
+        <div style={{
+          background: 'rgba(16, 185, 129, 0.1)',
+          border: '1px solid rgba(16, 185, 129, 0.2)',
+          borderRadius: '24px',
+          padding: '2.5rem',
+          position: 'relative',
+          overflow: 'hidden'
+        }}>
+          <div style={{
+            position: 'absolute',
+            top: '-20px',
+            right: '-20px',
+            fontSize: '6rem',
+            opacity: 0.1
+          }}>🎉</div>
+          <h2 style={{ 
+            fontSize: '1.8rem', 
+            marginBottom: '1rem',
+            color: '#34d399'
+          }}>
+            The SavePlate Solution
+          </h2>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+            gap: '1.5rem'
+          }}>
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+              <span style={{ fontSize: '2rem' }}>🤝</span>
+              <div>
+                <h3 style={{ margin: '0 0 0.5rem', color: '#fff' }}>We Connect You</h3>
+                <p style={{ margin: 0, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5 }}>
+                  Vendors list their surplus food. Students grab it at amazing prices. Everyone wins!
+                </p>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+              <span style={{ fontSize: '2rem' }}>🌍</span>
+              <div>
+                <h3 style={{ margin: '0 0 0.5rem', color: '#fff' }}>Save the Planet</h3>
+                <p style={{ margin: 0, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5 }}>
+                  Every meal saved is less waste in landfills. You're literally saving the world, one bite at a time.
+                </p>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* How It Works */}
-      <section style={{ 
-        padding: '4rem 0',
-        background: 'var(--bg-secondary)',
-        borderTop: '1px solid var(--border-color)',
-        borderBottom: '1px solid var(--border-color)'
+      <section style={{
+        padding: '3rem 1rem 4rem',
+        maxWidth: '1000px',
+        margin: '0 auto'
       }}>
-        <div className="container">
-          <h2 style={{
-            textAlign: 'center',
-            fontSize: '2.5rem',
-            marginBottom: '3rem',
-            color: 'var(--text-primary)'
-          }}>
-            How SavePlate Works 🔄
-          </h2>
-          
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-            gap: '2rem'
-          }}>
-            {[
-              {
-                icon: '🏪',
-                title: 'Vendors List Surplus',
-                description: 'Restaurants, cafes, and supermarkets list their surplus food at discounted prices'
-              },
-              {
-                icon: '🎓',
-                title: 'Students Browse & Order',
-                description: 'Students browse available food, add to cart, and place orders'
-              },
-              {
-                icon: '📱',
-                title: 'Mobile Money Payments',
-                description: 'Secure payments via mobile money platforms popular in Africa'
-              },
-              {
-                icon: '🛵',
-                title: 'Pickup & Enjoy',
-                description: 'Students pick up their orders and enjoy affordable, quality meals'
-              }
-            ].map((step, index) => (
-              <div key={index} style={{
-                background: 'var(--bg-card)',
-                padding: '2rem',
-                borderRadius: '12px',
-                border: '1px solid var(--border-color)',
-                textAlign: 'center',
-                transition: 'all 0.3s ease'
+        <h2 style={{
+          textAlign: 'center',
+          fontSize: '2rem',
+          marginBottom: '2.5rem'
+        }}>
+          How It Works
+        </h2>
+        
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gap: '2rem'
+        }}>
+          {[
+            { step: '1', icon: '👀', title: 'Browse', desc: 'Check out what local vendors have available today' },
+            { step: '2', icon: '📞', title: 'Contact', desc: 'Call the vendor directly to place your order' },
+            { step: '3', icon: '🏃', title: 'Pickup', desc: 'Grab your food and enjoy those savings!' },
+            { step: '4', icon: '⭐', title: 'Review', desc: 'Leave a review to help other students' }
+          ].map((item, i) => (
+            <div key={i} style={{
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: '20px',
+              padding: '2rem',
+              textAlign: 'center',
+              position: 'relative'
+            }}>
+              <div style={{
+                position: 'absolute',
+                top: '-15px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                background: '#10b981',
+                color: 'white',
+                width: '30px',
+                height: '30px',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: '700'
               }}>
-                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>{step.icon}</div>
-                <h3 style={{ color: 'var(--text-primary)', marginBottom: '1rem' }}>
-                  {step.title}
-                </h3>
-                <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6' }}>
-                  {step.description}
-                </p>
+                {item.step}
               </div>
-            ))}
-          </div>
+              <div style={{ fontSize: '3rem', marginBottom: '1rem', marginTop: '0.5rem' }}>
+                {item.icon}
+              </div>
+              <h3 style={{ margin: '0 0 0.5rem' }}>{item.title}</h3>
+              <p style={{ margin: 0, color: 'rgba(255,255,255,0.6)', fontSize: '0.95rem' }}>
+                {item.desc}
+              </p>
+            </div>
+          ))}
         </div>
       </section>
 
-      {/* Impact Stats */}
-      <section style={{ padding: '4rem 0' }}>
-        <div className="container">
+      {/* Fun Facts */}
+      <section style={{
+        background: 'rgba(16, 185, 129, 0.05)',
+        padding: '3rem 1rem',
+        borderTop: '1px solid rgba(16, 185, 129, 0.1)',
+        borderBottom: '1px solid rgba(16, 185, 129, 0.1)'
+      }}>
+        <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
           <h2 style={{
             textAlign: 'center',
-            fontSize: '2.5rem',
-            marginBottom: '3rem',
-            color: 'var(--text-primary)'
+            fontSize: '1.8rem',
+            marginBottom: '2rem',
+            color: '#10b981'
           }}>
-            Our Impact 📊
+            Why Students Love Us
           </h2>
-          
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: '2rem',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+            gap: '1.5rem',
             textAlign: 'center'
           }}>
             {[
-              { number: '37%', label: 'Food Waste in Africa', description: 'Reducing this massive waste' },
-              { number: stats.loading ? '...' : stats.foodItems.toLocaleString(), label: 'Food Items Saved', description: 'And counting...' },
-              { number: stats.loading ? '...' : stats.mealsProvided.toLocaleString(), label: 'Meals Provided', description: 'To students & communities' },
-              { number: stats.loading ? '...' : stats.vendorsPartnered.toLocaleString(), label: 'Vendors Partnered', description: 'Joining the movement' }
-            ].map((stat, index) => (
-              <div key={index} style={{
-                background: 'var(--bg-card)',
-                padding: '2rem',
-                borderRadius: '12px',
-                border: '1px solid var(--border-color)'
-              }}>
-                <div style={{
-                  fontSize: '2.5rem',
-                  fontWeight: 'bold',
-                  background: 'linear-gradient(135deg, var(--accent-green), var(--accent-blue))',
-                  backgroundClip: 'text',
-                  WebkitBackgroundClip: 'text',
-                  color: 'transparent',
-                  marginBottom: '0.5rem'
-                }}>
-                  {stat.number}
+              { stat: '50-70%', label: 'Off Regular Prices', icon: '💰' },
+              { stat: 'Fresh', label: 'Quality Food', icon: '✨' },
+              { stat: 'Local', label: 'Verified Vendors', icon: '🏪' },
+              { stat: 'Zero', label: 'Hidden Fees', icon: '🎯' }
+            ].map((item, i) => (
+              <div key={i}>
+                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>{item.icon}</div>
+                <div style={{ fontSize: '1.8rem', fontWeight: '800', color: '#10b981' }}>
+                  {item.stat}
                 </div>
-                <div style={{
-                  color: 'var(--text-primary)',
-                  fontWeight: '600',
-                  marginBottom: '0.5rem'
-                }}>
-                  {stat.label}
-                </div>
-                <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                  {stat.description}
-                </div>
+                <div style={{ color: 'rgba(255,255,255,0.7)' }}>{item.label}</div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
+      {/* For Vendors */}
       <section style={{
-        padding: '4rem 0',
-        background: 'linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%)',
-        textAlign: 'center',
-        borderTop: '1px solid var(--border-color)'
+        padding: '3rem 1rem',
+        maxWidth: '800px',
+        margin: '0 auto',
+        textAlign: 'center'
       }}>
-        <div className="container">
-          <h2 style={{
-            fontSize: '2.5rem',
-            marginBottom: '1rem',
-            color: 'var(--text-primary)'
-          }}>
-            Ready to Make a Difference?
-          </h2>
-          <p style={{
-            color: 'var(--text-secondary)',
-            fontSize: '1.2rem',
-            marginBottom: '2rem',
-            maxWidth: '600px',
-            margin: '0 auto 2rem'
-          }}>
-            Join SavePlate today and be part of the solution to food waste in Africa.
-          </p>
-          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button 
-              className="btn btn-primary"
-              onClick={() => navigate('/auth')}
-              style={{ padding: '1rem 2rem', fontSize: '1.1rem' }}
-            >
-              Sign Up Now 🚀
-            </button>
-            <button 
-              className="btn-secondary"
-              onClick={() => navigate('/vendors-list')}
-              style={{ padding: '1rem 2rem', fontSize: '1.1rem' }}
-            >
-              Browse Vendors 🏪
-            </button>
-          </div>
-        </div>
+        <h2 style={{ fontSize: '1.8rem', marginBottom: '1rem' }}>
+          Are You a Vendor?
+        </h2>
+        <p style={{
+          color: 'rgba(255,255,255,0.7)',
+          marginBottom: '2rem',
+          fontSize: '1.1rem',
+          lineHeight: 1.6
+        }}>
+          Stop throwing away good food and start earning extra income!
+          Join SavePlate and connect with hungry students in your area.
+          It's free to join and you're in full control.
+        </p>
+        <button
+          onClick={() => navigate('/auth')}
+          style={{
+            padding: '14px 32px',
+            background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+            border: 'none',
+            borderRadius: '25px',
+            color: 'white',
+            fontWeight: '700',
+            fontSize: '1.1rem',
+            cursor: 'pointer'
+          }}
+        >
+          Join as Vendor
+        </button>
       </section>
+
+      {/* CTA */}
+      <section style={{
+        padding: '4rem 1rem',
+        textAlign: 'center',
+        background: 'linear-gradient(180deg, transparent 0%, rgba(16, 185, 129, 0.1) 100%)'
+      }}>
+        <h2 style={{
+          fontSize: '2.2rem',
+          marginBottom: '1rem'
+        }}>
+          Ready to Eat Smart?
+        </h2>
+        <p style={{
+          color: 'rgba(255,255,255,0.7)',
+          marginBottom: '2rem',
+          fontSize: '1.1rem'
+        }}>
+          Join the movement. Save food. Save money. Save the planet.
+        </p>
+        <button
+          onClick={() => navigate('/auth')}
+          style={{
+            padding: '16px 40px',
+            background: 'linear-gradient(135deg, #10b981, #059669)',
+            border: 'none',
+            borderRadius: '30px',
+            color: 'white',
+            fontWeight: '700',
+            fontSize: '1.2rem',
+            cursor: 'pointer',
+            boxShadow: '0 4px 30px rgba(16, 185, 129, 0.3)'
+          }}
+        >
+          Get Started - It's Free
+        </button>
+      </section>
+
+      {/* Footer */}
+      <footer style={{
+        padding: '2rem',
+        textAlign: 'center',
+        borderTop: '1px solid rgba(255,255,255,0.05)'
+      }}>
+        <p style={{ margin: 0, color: 'rgba(255,255,255,0.5)', fontSize: '0.9rem' }}>
+          SavePlate Rwanda - Fighting food waste, one meal at a time
+        </p>
+      </footer>
+
+      <style>{`
+        @keyframes bounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-10px); }
+        }
+        @keyframes float0 {
+          0%, 100% { transform: translateY(0) rotate(0deg); }
+          50% { transform: translateY(-20px) rotate(10deg); }
+        }
+        @keyframes float1 {
+          0%, 100% { transform: translateY(0) rotate(0deg); }
+          50% { transform: translateY(-15px) rotate(-10deg); }
+        }
+        @keyframes float2 {
+          0%, 100% { transform: translateY(0) rotate(0deg); }
+          50% { transform: translateY(-25px) rotate(5deg); }
+        }
+      `}</style>
     </div>
   );
 }
-
-export default About;
