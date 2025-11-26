@@ -12,33 +12,63 @@ import Admin from './pages/Admin';
 import Profile from './pages/Profile';
 
 function ProtectedRoute({ children, role }) {
-  const { profile, loading } = useApp();
+  const { user, profile, loading } = useApp();
 
-  if (loading) return <div style={{ padding: '2rem' }}>Loading...</div>;
-  if (!profile) return <Navigate to="/auth" replace />;
-  if (role && profile.role !== role) return <Navigate to="/" replace />;
+  if (loading) {
+    return (
+      <div style={{ 
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'radial-gradient(ellipse at top, #0c1929 0%, #000000 50%)',
+        color: 'white'
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🍽️</div>
+          <p>Loading...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  if (!user || !profile) return <Navigate to="/auth" replace />;
+  if (role && profile.role !== role) {
+    // Redirect to appropriate dashboard
+    return <Navigate to={profile.role === 'vendor' ? '/vendors' : '/students'} replace />;
+  }
 
   return children;
 }
 
 function VendorOnboardingRoute({ children }) {
-  const { profile, loading } = useApp();
+  const { user, profile, loading } = useApp();
 
-  if (loading) return <div style={{ padding: '2rem' }}>Loading...</div>;
-  if (!profile) return <Navigate to="/auth" replace />;
-  if (profile.role !== 'vendor') return <Navigate to="/" replace />;
+  if (loading) {
+    return (
+      <div style={{ 
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'radial-gradient(ellipse at top, #0c1929 0%, #000000 50%)',
+        color: 'white'
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🍽️</div>
+          <p>Loading...</p>
+        </div>
+      </div>
+    );
+  }
   
-  // Check if vendor is verified (multiple ways to check)
-  const isVerified = profile.verification_status === 'verified' || 
-                    profile.is_verified === true ||
-                    (profile.verification_status !== 'pending' && 
-                     profile.verification_status !== 'rejected' && 
-                     profile.verification_status !== 'suspended' &&
-                     profile.verification_status != null &&
-                     profile.verification_status !== undefined &&
-                     profile.verification_status !== '');
+  if (!user || !profile) return <Navigate to="/auth" replace />;
+  if (profile.role !== 'vendor') return <Navigate to="/students" replace />;
   
-  // If vendor is already verified, redirect to dashboard immediately
+  // Check if vendor is verified
+  const isVerified = profile.verification_status === 'verified' || profile.is_verified === true;
+  
+  // If vendor is already verified, redirect to dashboard
   if (isVerified) {
     return <Navigate to="/vendors" replace />;
   }

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const AppContext = createContext();
 
@@ -25,6 +25,8 @@ function appReducer(state, action) {
         profile: action.payload.profile, 
         loading: false 
       };
+    case 'LOGOUT':
+      return { ...initialState, loading: false };
     default:
       return state;
   }
@@ -33,210 +35,131 @@ function appReducer(state, action) {
 export function AppProvider({ children }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     let isMounted = true;
-    let timeoutId;
-    let hasInitialized = false;
     
+    // Routes that don't require auth
     const isPublicRoute = (path) => {
       return path === '/' || 
              path === '/auth' || 
-             path.startsWith('/vendors/') ||
-             path.startsWith('/about') ||
-             path.startsWith('/contact');
+             path === '/about' ||
+             path.startsWith('/vendors/');
+    };
+
+    // Routes that authenticated users can access regardless of role
+    const isSharedRoute = (path) => {
+      return path === '/profile';
     };
     
-    const fetchAndSetProfile = async (userId, userMetadata = {}) => {
+    const fetchProfile = async (userId) => {
       try {
-        const { data: profile, error: profileError } = await supabase
+        const { data: profile, error } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', userId)
           .single();
         
-        if (profileError) {
-          if (profileError.code === 'PGRST116') {
-            try {
-              const role = userMetadata.role || 'student';
-              const { data: newProfile, error: createError } = await supabase
-                .from('profiles')
-                .insert({
-                  id: userId,
-                  role,
-                  full_name: userMetadata.full_name || userMetadata.email?.split('@')[0] || 'User',
-                  verification_status: 'pending'
-                })
-                .select()
-                .single();
-              
-              if (createError) return null;
-              
-              if (newProfile && isMounted) {
-                dispatch({ type: 'SET_PROFILE', payload: newProfile });
-                return newProfile;
-              }
-            } catch (createErr) {
-              return null;
-            }
-          }
+        if (error) {
+          console.error('Profile fetch error:', error);
           return null;
         }
         
-        if (profile && isMounted) {
-          dispatch({ type: 'SET_PROFILE', payload: profile });
-          return profile;
-        }
-        
-        return null;
+        return profile;
       } catch (err) {
+        console.error('Profile fetch exception:', err);
         return null;
       }
     };
     
-    const handleRedirect = (profile, currentPath) => {
-      if (!profile || !isMounted) return;
-      
-      if (isPublicRoute(currentPath)) return;
-      
-      let targetPath;
-      if (profile.role === 'vendor') {
-        const isVerified = profile.verification_status === 'verified' || 
-                          profile.is_verified === true ||
-                          (profile.verification_status !== 'pending' && 
-                           profile.verification_status !== 'rejected' && 
-                           profile.verification_status !== 'suspended' &&
-                           profile.verification_status != null &&
-                           profile.verification_status !== undefined &&
-                           profile.verification_status !== '');
-        
-        if (isVerified) {
-          targetPath = '/vendors';
-          if (currentPath === '/vendor-onboarding') {
-            navigate('/vendors', { replace: true });
-            return;
-          }
-        } else {
-          targetPath = '/vendor-onboarding';
-        }
-      } else {
-        targetPath = '/students';
-      }
-      
-      if (currentPath !== targetPath && 
-          currentPath !== '/' && 
-          currentPath !== '/vendor-onboarding' && 
-          currentPath !== '/auth' &&
-          !currentPath.startsWith('/vendors/')) {
-        navigate(targetPath, { replace: true });
-      }
-    };
-    
-    const initializeSession = async () => {
-      if (hasInitialized || !isMounted) return;
-      hasInitialized = true;
-      
+    const initAuth = async () => {
       try {
-        const currentPath = window.location.pathname;
+        const { data: { session }, error } = await supabase.auth.getSession();
         
-        if (isPublicRoute(currentPath)) {
-          dispatch({ type: 'SET_LOADING', payload: false });
-          if (timeoutId) clearTimeout(timeoutId);
+        if (error) {
+          console.error('Session error:', error);
+          if (isMounted) dispatch({ type: 'SET_LOADING', payload: false });
           return;
         }
         
-        const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Session check timeout')), 2000)
-        );
-        
-        const { data: { session }, error } = await Promise.race([
-          sessionPromise,
-          timeoutPromise
-        ]).catch(() => ({ data: { session: null }, error: null }));
-        
-        if (!isMounted) return;
-        
-        if (session && session.user) {
-          dispatch({ type: 'SET_USER', payload: session.user });
+        if (session?.user) {
+          if (isMounted) dispatch({ type: 'SET_USER', payload: session.user });
           
-          const profile = await fetchAndSetProfile(
-            session.user.id,
-            session.user.user_metadata || {}
-          );
-          
-          if (profile) {
-            handleRedirect(profile, currentPath);
+          const profile = await fetchProfile(session.user.id);
+          if (profile && isMounted) {
+            dispatch({ type: 'SET_PROFILE', payload: profile });
           }
         }
         
-        dispatch({ type: 'SET_LOADING', payload: false });
-        if (timeoutId) clearTimeout(timeoutId);
+        if (isMounted) dispatch({ type: 'SET_LOADING', payload: false });
       } catch (err) {
-        if (isMounted) {
-          dispatch({ type: 'SET_LOADING', payload: false });
-          if (timeoutId) clearTimeout(timeoutId);
-        }
+        console.error('Auth init error:', err);
+        if (isMounted) dispatch({ type: 'SET_LOADING', payload: false });
       }
     };
 
+    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!isMounted) return;
       
-      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
-        if (session && session.user) {
-          dispatch({ type: 'SET_USER', payload: session.user });
+      console.log('Auth event:', event);
+      
+      if (event === 'SIGNED_IN' && session?.user) {
+        dispatch({ type: 'SET_USER', payload: session.user });
+        
+        const profile = await fetchProfile(session.user.id);
+        if (profile && isMounted) {
+          dispatch({ type: 'SET_PROFILE', payload: profile });
           
-          const profile = await fetchAndSetProfile(
-            session.user.id, 
-            session.user.user_metadata || {}
-          );
-          
-          if (profile) {
-            handleRedirect(profile, window.location.pathname);
-          } else if (session.user.user_metadata?.role === 'vendor') {
-            navigate('/vendor-onboarding', { replace: true });
-          } else {
-            navigate('/students', { replace: true });
+          // Only redirect if on auth page
+          if (location.pathname === '/auth') {
+            const targetPath = profile.role === 'vendor' 
+              ? (profile.verification_status === 'verified' || profile.is_verified ? '/vendors' : '/vendor-onboarding')
+              : '/students';
+            navigate(targetPath, { replace: true });
           }
-          
-          dispatch({ type: 'SET_LOADING', payload: false });
-          if (timeoutId) clearTimeout(timeoutId);
-        } else {
-          dispatch({ type: 'SET_LOADING', payload: false });
-          if (timeoutId) clearTimeout(timeoutId);
         }
-      } else if (event === 'SIGNED_OUT') {
-        dispatch({ type: 'SET_USER', payload: null });
-        dispatch({ type: 'SET_PROFILE', payload: null });
+        
         dispatch({ type: 'SET_LOADING', payload: false });
-        if (timeoutId) clearTimeout(timeoutId);
+      } else if (event === 'SIGNED_OUT') {
+        dispatch({ type: 'LOGOUT' });
+        navigate('/auth', { replace: true });
       } else if (event === 'TOKEN_REFRESHED') {
-        if (timeoutId) clearTimeout(timeoutId);
+        // Just refresh the session, no redirect needed
+        if (session?.user && isMounted) {
+          dispatch({ type: 'SET_USER', payload: session.user });
+        }
       }
     });
     
-    initializeSession();
+    initAuth();
     
-    timeoutId = setTimeout(() => {
-      if (isMounted) {
+    // Safety timeout - ensure loading ends
+    const timeout = setTimeout(() => {
+      if (isMounted && state.loading) {
         dispatch({ type: 'SET_LOADING', payload: false });
       }
-    }, 2000);
+    }, 3000);
     
     return () => {
       isMounted = false;
-      hasInitialized = false;
-      if (timeoutId) clearTimeout(timeoutId);
+      clearTimeout(timeout);
       subscription?.unsubscribe();
     };
-  }, [navigate]);
+  }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    dispatch({ type: 'SET_USER', payload: null });
-    dispatch({ type: 'SET_PROFILE', payload: null });
-    navigate('/auth');
+    try {
+      await supabase.auth.signOut();
+      dispatch({ type: 'LOGOUT' });
+      navigate('/auth', { replace: true });
+    } catch (error) {
+      console.error('Sign out error:', error);
+      // Force logout even if API fails
+      dispatch({ type: 'LOGOUT' });
+      navigate('/auth', { replace: true });
+    }
   };
 
   return (

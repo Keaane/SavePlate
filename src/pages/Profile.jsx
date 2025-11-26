@@ -215,7 +215,14 @@ export default function Profile() {
           marginBottom: '2rem'
         }}>
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => {
+              // Navigate to appropriate dashboard based on role
+              if (profile?.role === 'vendor') {
+                navigate('/vendors');
+              } else {
+                navigate('/students');
+              }
+            }}
             style={{
               background: 'rgba(255,255,255,0.1)',
               border: '1px solid rgba(255,255,255,0.2)',
@@ -226,7 +233,7 @@ export default function Profile() {
               fontSize: '1rem'
             }}
           >
-            Back
+            Back to Dashboard
           </button>
           <h1 style={{ margin: 0, fontSize: '2rem', fontWeight: '700' }}>
             My Profile

@@ -244,7 +244,7 @@ function Auth() {
       }}>
         {/* Header */}
         <div style={{ 
-          background: 'linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%)', 
+          background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', 
           padding: '2.5rem 2rem',
           textAlign: 'center',
           position: 'relative',
@@ -256,7 +256,7 @@ function Auth() {
             right: '-30px',
             width: '100px',
             height: '100px',
-            background: 'radial-gradient(circle, rgba(52,211,153,0.2) 0%, transparent 70%)',
+            background: 'radial-gradient(circle, rgba(255,255,255,0.05) 0%, transparent 70%)',
             borderRadius: '50%'
           }}></div>
           
@@ -271,18 +271,15 @@ function Auth() {
             margin: 0, 
             fontSize: '2.2rem', 
             fontWeight: '800', 
-            background: 'linear-gradient(135deg, #fff, #6ee7b7)', 
-            backgroundClip: 'text', 
-            WebkitBackgroundClip: 'text', 
-            color: 'transparent' 
+            color: 'white'
           }}>
             SavePlate
           </h1>
           <p style={{ 
             margin: '0.75rem 0 0', 
-            color: '#6ee7b7', 
+            color: 'rgba(255,255,255,0.7)', 
             fontStyle: 'italic', 
-            fontSize: '1.1rem' 
+            fontSize: '1.05rem' 
           }}>
             Eat like royalty. Pay like a student.
           </p>
