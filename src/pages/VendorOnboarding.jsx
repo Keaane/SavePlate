@@ -74,34 +74,18 @@ export default function VendorOnboarding() {
     if (step === 4) {
       // Submit verification
       setUploading(true);
+      
       try {
-        let idUrl = null;
+        console.log('Starting verification process...');
+        
+        // Skip file uploads if storage isn't set up - just update the profile
+        // File uploads are optional and shouldn't block verification
         let galleryUrls = [];
-
-        // Try to upload ID card
-        if (formData.id_card) {
-          try {
-            const fileName = `${profile.id}/id/${Date.now()}_${formData.id_card.name}`;
-            const { error: uploadError } = await supabase.storage
-              .from('vendor-docs')
-              .upload(fileName, formData.id_card);
-            
-            if (!uploadError) {
-              const { data: urlData } = supabase.storage
-                .from('vendor-docs')
-                .getPublicUrl(fileName);
-              idUrl = urlData?.publicUrl || null;
-            } else {
-              console.warn('ID upload failed:', uploadError.message);
-            }
-          } catch (storageError) {
-            console.warn('Storage upload failed:', storageError);
-          }
-        }
-
-        // Upload gallery images
+        
+        // Try to upload gallery images (optional - don't block on failure)
         if (formData.gallery_images && formData.gallery_images.length > 0) {
-          for (let i = 0; i < formData.gallery_images.length; i++) {
+          console.log('Attempting to upload gallery images...');
+          for (let i = 0; i < Math.min(formData.gallery_images.length, 5); i++) {
             try {
               const file = formData.gallery_images[i];
               const fileName = `${profile.id}/gallery/${Date.now()}_${i}_${file.name}`;
@@ -116,6 +100,8 @@ export default function VendorOnboarding() {
                 if (urlData?.publicUrl) {
                   galleryUrls.push(urlData.publicUrl);
                 }
+              } else {
+                console.warn('Gallery upload skipped:', uploadError.message);
               }
             } catch (err) {
               console.warn('Gallery image upload failed:', err);
@@ -123,54 +109,56 @@ export default function VendorOnboarding() {
           }
         }
 
-        // Build update object
+        // Build update object - this is the critical part
+        console.log('Building profile update...');
         const specialtiesText = formData.specialties ? `\n\nSpecialties: ${formData.specialties}` : '';
         const updateData = {
-          business_name: formData.business_name,
+          business_name: formData.business_name.trim(),
           business_type: formData.business_type,
-          location: formData.location,
-          phone: formData.phone,
-          description: (formData.description || 'Local vendor fighting food waste') + 
+          location: formData.location.trim(),
+          phone: formData.phone.trim(),
+          description: (formData.description || 'Local vendor fighting food waste').trim() + 
                       `\nWhatsApp: ${formData.whatsapp || formData.phone}` + 
                       specialtiesText,
           verification_status: 'verified',
           is_verified: true
         };
 
-        // Add gallery URLs if we have any (stored as JSON array in description or separate field)
+        // Add gallery URLs if we have any
         if (galleryUrls.length > 0) {
           updateData.gallery_images = galleryUrls;
         }
 
-        const { error: updateError } = await supabase
+        console.log('Updating profile with:', updateData);
+        
+        // Update the profile - this is the main operation
+        const { data: updatedData, error: updateError } = await supabase
           .from('profiles')
           .update(updateData)
-          .eq('id', profile.id);
-
-        if (updateError) throw updateError;
-
-        // Fetch the updated profile to ensure we have the latest data
-        const { data: updatedProfile, error: fetchError } = await supabase
-          .from('profiles')
-          .select('*')
           .eq('id', profile.id)
+          .select()
           .single();
 
-        if (fetchError) throw fetchError;
-
-        // Update the profile in AppContext immediately
-        if (updatedProfile) {
-          dispatch({ type: 'SET_PROFILE', payload: updatedProfile });
+        if (updateError) {
+          console.error('Profile update error:', updateError);
+          throw new Error(updateError.message || 'Failed to update profile');
         }
 
-        alert('✅ Verification complete! You can now add food items.');
-        // Navigate immediately - the profile state is updated
-        navigate('/vendors', { replace: true });
-      } catch (err) {
-        alert('❌ Failed: ' + (err.message || 'Please try again. Make sure all required fields are filled.'));
-        console.error('Verification error:', err);
-      } finally {
+        console.log('Profile updated successfully:', updatedData);
+
+        // Update the profile in AppContext
+        if (updatedData) {
+          dispatch({ type: 'SET_PROFILE', payload: updatedData });
+        }
+
         setUploading(false);
+        alert('Verification complete! You can now add food items.');
+        navigate('/vendors', { replace: true });
+        
+      } catch (err) {
+        console.error('Verification error:', err);
+        setUploading(false);
+        alert('Failed: ' + (err.message || 'Please try again.'));
       }
     } else {
       setStep(step + 1);
