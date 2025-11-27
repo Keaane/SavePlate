@@ -37,8 +37,18 @@ function ProtectedRoute({ children, role }) {
   if (!profile) return renderLoading();
 
   if (role && profile.role !== role) {
-    // Redirect to appropriate dashboard
-    return <Navigate to={profile.role === 'vendor' ? '/vendors' : '/students'} replace />;
+    const fallback = (() => {
+      if (profile.role === 'vendor') {
+        return profile.verification_status === 'verified' || profile.is_verified
+          ? '/vendors'
+          : '/vendor-onboarding';
+      }
+      if (profile.role === 'admin') {
+        return '/admin';
+      }
+      return '/students';
+    })();
+    return <Navigate to={fallback} replace />;
   }
 
   return children;
@@ -120,7 +130,11 @@ export default function AppRoutes() {
       
       <Route 
         path="/admin" 
-        element={<Admin />} 
+        element={
+          <ProtectedRoute role="admin">
+            <Admin />
+          </ProtectedRoute>
+        } 
       />
       
       <Route 

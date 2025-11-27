@@ -40,20 +40,36 @@ export function AppProvider({ children }) {
   useEffect(() => {
     let isMounted = true;
     
-    // Routes that don't require auth
-    const isPublicRoute = (path) => {
-      return path === '/' || 
-             path === '/auth' || 
-             path === '/about' ||
-             path.startsWith('/vendors/');
-    };
+    const createProfile = async (userId, metadata = {}) => {
+      try {
+        const role = metadata.role || 'student';
+        const fullName = metadata.full_name || metadata.name || metadata.user_name || metadata.email?.split('@')[0] || 'User';
 
-    // Routes that authenticated users can access regardless of role
-    const isSharedRoute = (path) => {
-      return path === '/profile';
+        const { data, error } = await supabase
+          .from('profiles')
+          .insert({
+            id: userId,
+            role,
+            full_name: fullName,
+            verification_status: role === 'vendor' ? 'pending' : 'verified',
+            is_verified: role === 'vendor' ? false : true
+          })
+          .select('*')
+          .single();
+
+        if (error) {
+          console.error('Profile create error:', error);
+          return null;
+        }
+
+        return data;
+      } catch (err) {
+        console.error('Profile create exception:', err);
+        return null;
+      }
     };
     
-    const fetchProfile = async (userId) => {
+    const fetchProfile = async (userId, metadata = {}) => {
       try {
         const { data: profile, error } = await supabase
           .from('profiles')
@@ -62,6 +78,10 @@ export function AppProvider({ children }) {
           .single();
         
         if (error) {
+          if (error.code === 'PGRST116') {
+            // Profile missing - create automatically
+            return await createProfile(userId, metadata);
+          }
           console.error('Profile fetch error:', error);
           return null;
         }
@@ -86,7 +106,7 @@ export function AppProvider({ children }) {
         if (session?.user) {
           if (isMounted) dispatch({ type: 'SET_USER', payload: session.user });
           
-          const profile = await fetchProfile(session.user.id);
+          const profile = await fetchProfile(session.user.id, session.user.user_metadata || {});
           if (profile && isMounted) {
             dispatch({ type: 'SET_PROFILE', payload: profile });
           }
@@ -108,15 +128,20 @@ export function AppProvider({ children }) {
       if (event === 'SIGNED_IN' && session?.user) {
         dispatch({ type: 'SET_USER', payload: session.user });
         
-        const profile = await fetchProfile(session.user.id);
+        const profile = await fetchProfile(session.user.id, session.user.user_metadata || {});
         if (profile && isMounted) {
           dispatch({ type: 'SET_PROFILE', payload: profile });
           
           // Only redirect if on auth page
           if (location.pathname === '/auth') {
-            const targetPath = profile.role === 'vendor' 
-              ? (profile.verification_status === 'verified' || profile.is_verified ? '/vendors' : '/vendor-onboarding')
-              : '/students';
+            let targetPath = '/students';
+            if (profile.role === 'vendor') {
+              targetPath = profile.verification_status === 'verified' || profile.is_verified
+                ? '/vendors'
+                : '/vendor-onboarding';
+            } else if (profile.role === 'admin') {
+              targetPath = '/admin';
+            }
             navigate(targetPath, { replace: true });
           }
         }
