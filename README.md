@@ -15,7 +15,7 @@ A surplus food redistribution platform connecting vendors with students and comm
 
 - **Frontend**: React 18 + Vite
 - **Backend**: Supabase (PostgreSQL, Auth, Storage)
-- **Hosting**: Vercel or Netlify
+- **Hosting**: Vercel 
 
 ---
 

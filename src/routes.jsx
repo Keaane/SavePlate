@@ -14,25 +14,28 @@ import Profile from './pages/Profile';
 function ProtectedRoute({ children, role }) {
   const { user, profile, loading } = useApp();
 
-  if (loading) {
-    return (
-      <div style={{ 
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'radial-gradient(ellipse at top, #0c1929 0%, #000000 50%)',
-        color: 'white'
-      }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🍽️</div>
-          <p>Loading...</p>
-        </div>
+  const renderLoading = () => (
+    <div style={{ 
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'radial-gradient(ellipse at top, #0c1929 0%, #000000 50%)',
+      color: 'white'
+    }}>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🍽️</div>
+        <p>Loading...</p>
       </div>
-    );
-  }
+    </div>
+  );
+
+  if (loading) return renderLoading();
   
-  if (!user || !profile) return <Navigate to="/auth" replace />;
+  if (!user) return <Navigate to="/auth" replace />;
+
+  if (!profile) return renderLoading();
+
   if (role && profile.role !== role) {
     // Redirect to appropriate dashboard
     return <Navigate to={profile.role === 'vendor' ? '/vendors' : '/students'} replace />;
